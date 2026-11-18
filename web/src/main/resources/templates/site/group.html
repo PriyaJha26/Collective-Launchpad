@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head(${group.name})}"></head>
+<body>
+<main class="wrap">
+  <section class="home-hero">
+    <h1 th:text="${group.name}">Group</h1>
+    <p class="muted" th:if="${group.tagline}" th:text="${group.tagline}"></p>
+    <p th:if="${group.description}" th:text="${group.description}"></p>
+    <p class="small muted">
+      <span th:if="${group.location}" th:text="${group.location} + ' · '"></span>
+      <span th:text="${shops.size()} + (${shops.size()} == 1 ? ' seller' : ' sellers') + ' · one shared website'"></span>
+    </p>
+  </section>
+
+  <p class="muted center" th:if="${shops.isEmpty()}">Shops are being set up. Please visit again soon.</p>
+
+  <div class="cards">
+    <a class="card-link" th:each="s : ${shops}" th:href="${urls.shopUrl(s.slug)}">
+      <div class="body">
+        <h3 th:text="${s.shopName}">Shop</h3>
+        <p class="small muted" th:if="${s.location}" th:text="${s.location}"></p>
+        <div class="addr" th:text="${urls.shopHost(s.slug)}"></div>
+      </div>
+    </a>
+  </div>
+</main>
+<footer class="site"><div class="wrap">
+  Contact the group: <a th:href="'mailto:' + ${group.contactEmail}" th:text="${group.contactEmail}"></a>
+  · <a href="/login">Group admin</a>
+</div></footer>
+</body>
+</html>

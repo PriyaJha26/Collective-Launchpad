@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="4" th:if="${onb.isWorking()}">
+  <title th:text="'Onboarding ' + ${seller.name}">Onboarding</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<header th:replace="~{fragments :: adminBar}"></header>
+<main class="wrap narrow admin">
+  <th:block th:replace="~{fragments :: flash}"></th:block>
+  <p class="small"><a href="/admin">← Dashboard</a></p>
+  <h1 th:text="'Setting up ' + ${seller.name} + '’s shop'">Onboarding</h1>
+
+  <!-- Current state -->
+  <div class="panel" th:if="${onb.isWorking()}">
+    <div class="row"><div class="spinner"></div><strong>The assistant is reading the photos and notes…</strong></div>
+    <p class="hint">This page refreshes by itself. It usually takes under a minute.</p>
+  </div>
+
+  <div class="panel" th:if="${onb.status == 'failed'}">
+    <div class="alert err"><strong>That did not go through.</strong> <span th:text="${onb.lastError}"></span></div>
+    <form th:action="@{/admin/onboarding/{id}/retry(id=${onb.id})}" method="post"><button class="btn" type="submit">Try again</button></form>
+  </div>
+
+  <div class="panel" th:if="${onb.status == 'submitted'}">
+    <div class="alert ok"><strong>The draft is ready for your review.</strong></div>
+    <p th:if="${onb.noteForAdmin}" class="pre" th:text="${onb.noteForAdmin}"></p>
+    <a class="btn big" th:href="@{/admin/sellers/{id}(id=${seller.id})}">Review and publish →</a>
+  </div>
+
+  <div class="panel" th:if="${onb.status == 'needs_input'}">
+    <span class="badge warn">Question for you</span>
+    <p class="question mt pre" th:text="${onb.pendingQuestion}">Question</p>
+    <p class="hint">Ask the seller if needed, then answer here. You can also add photos.</p>
+    <div class="alert warn small" th:if="${onb.lastError}" th:text="${onb.lastError}"></div>
+  </div>
+
+  <form class="panel" th:if="${!onb.isWorking() and onb.status != 'failed' and seller.isEditableByAgent()}"
+        th:action="@{/admin/onboarding/{id}/answer(id=${onb.id})}" method="post" enctype="multipart/form-data" id="sellerForm">
+    <label for="notes" th:text="${onb.status == 'submitted'} ? 'Anything to add or change? (optional)' : 'Your answer'">Your answer</label>
+    <div class="mic">
+      <button type="button" class="btn secondary small" id="micBtn">🎤 Start listening</button>
+      <span id="micState" class="small muted"></span>
+    </div>
+    <textarea id="notes" name="answer" maxlength="4000"></textarea>
+    <input type="hidden" id="language" th:value="${seller.language}">
+    <label for="photos" class="small">More photos (optional)</label>
+    <input id="photos" name="photos" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+    <div class="previews" id="previews"></div>
+    <p class="mt"><button class="btn" type="submit" id="submitBtn">Send to the assistant</button></p>
+  </form>
+
+  <!-- What the draft looks like so far -->
+  <div class="panel">
+    <div class="row between">
+      <h2>Draft so far</h2>
+      <a class="btn small ghost" th:href="@{/admin/sellers/{id}(id=${seller.id})}">Open the editor</a>
+    </div>
+    <dl class="kv">
+      <dt>Shop name</dt><dd th:text="${seller.shopName ?: '—'}"></dd>
+      <dt>Address</dt><dd th:text="${seller.slug != null} ? ${urls.shopHost(seller.slug)} : '—'"></dd>
+      <dt>Location</dt><dd th:text="${seller.location ?: '—'}"></dd>
+      <dt>Products</dt><dd th:text="${products.size()}"></dd>
+    </dl>
+    <ul class="small" th:if="${!products.isEmpty()}">
+      <li th:each="p : ${products}">
+        <span th:text="${p.name}"></span> · <span th:text="${p.priceLabel()}"></span> <span th:text="${p.unit}"></span>
+        <span class="badge warn" th:if="${p.needsReview}">check</span>
+      </li>
+    </ul>
+  </div>
+
+  <div class="panel" th:if="${!exchanges.isEmpty()}">
+    <h2>Conversation</h2>
+    <div class="chat">
+      <div th:each="x : ${exchanges}" class="bubble" th:classappend="${x.who() == 'You'} ? 'you' : 'assistant'">
+        <span class="who" th:text="${x.who()}"></span><span th:text="${x.text()}"></span>
+      </div>
+    </div>
+  </div>
+</main>
+<div class="overlay hidden" id="overlay">
+  <div class="spinner"></div>
+  <strong>Sending…</strong>
+</div>
+<script src="/js/photos.js"></script>
+<script src="/js/mic.js"></script>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Dashboard · ' + ${group.name})}"></head>
+<body>
+<header th:replace="~{fragments :: adminBar}"></header>
+<main class="wrap admin">
+  <th:block th:replace="~{fragments :: flash}"></th:block>
+
+  <h1 th:text="${group.name}">Group</h1>
+  <p class="muted"><span th:text="${urls.domain()}"></span> · <span th:text="${mailFrom}"></span></p>
+
+  <div class="tiles">
+    <div class="tile hero">
+      <div class="label">Cost per seller each month</div>
+      <div class="value" th:text="'₹' + ${#numbers.formatDecimal(costPerSeller, 1, 'COMMA', 0, 'POINT')}">₹0</div>
+      <div class="sub">
+        One shared plan (domain, mailbox, server) at
+        <span th:text="'₹' + ${#numbers.formatDecimal(monthlyCost, 1, 'COMMA', 0, 'POINT')}"></span>/month,
+        split across <span th:text="${published}"></span> live shops.
+      </div>
+    </div>
+    <a class="tile" href="#shops"><div class="label">Shops live</div><div class="value" th:text="${published}">0</div></a>
+    <a class="tile" href="#shops" th:classappend="${pendingReview > 0} ? 'attention'">
+      <div class="label">Waiting for your review</div><div class="value" th:text="${pendingReview}">0</div></a>
+    <a class="tile" href="/admin/inbox" th:classappend="${openEnquiries > 0} ? 'attention'">
+      <div class="label">Enquiries to answer</div><div class="value" th:text="${openEnquiries}">0</div></a>
+  </div>
+
+  <div class="panel" th:if="${!sessions.isEmpty()}">
+    <h2>Onboarding in progress</h2>
+    <table class="list"><tbody>
+      <tr th:each="s : ${sessions}">
+        <td><strong th:text="${sellerById[s.sellerId].name}"></strong></td>
+        <td>
+          <span th:if="${s.status == 'working'}" class="badge neutral">Assistant working…</span>
+          <span th:if="${s.status == 'needs_input'}" class="badge warn">Question for you</span>
+          <span th:if="${s.status == 'failed'}" class="badge crit">Failed: try again</span>
+          <div class="small muted" th:if="${s.pendingQuestion}" th:text="${s.pendingQuestion}"></div>
+        </td>
+        <td class="nowrap"><a class="btn small" th:href="@{/admin/onboarding/{id}(id=${s.id})}">Open</a></td>
+      </tr>
+    </tbody></table>
+  </div>
+
+  <div class="panel" id="shops">
+    <div class="row between">
+      <h2>Shops</h2>
+      <div class="row">
+        <form th:action="@{/admin/sellers/check-all}" method="post" class="inline"><button class="btn small ghost" type="submit">↻ Check live shops</button></form>
+        <a class="btn small" href="/admin/sellers/new">+ Add a seller</a>
+      </div>
+    </div>
+    <p class="muted" th:if="${sellers.isEmpty()}">No sellers yet. <a href="/admin/sellers/new">Add the first one</a> from a few photos and some notes.</p>
+    <div class="scroll" th:if="${!sellers.isEmpty()}">
+      <table class="list">
+        <thead><tr><th>Seller</th><th>Address</th><th>Status</th><th>Live check</th><th></th></tr></thead>
+        <tbody>
+        <tr th:each="s : ${sellers}">
+          <td><strong th:text="${s.shopName ?: s.name}"></strong><br><span class="small muted" th:text="${s.name}"></span></td>
+          <td>
+            <a th:if="${s.slug != null and s.status == 'published'}" th:href="${urls.shopUrl(s.slug)}" target="_blank" rel="noopener" th:text="${urls.shopHost(s.slug)}"></a>
+            <span th:if="${s.slug != null and s.status != 'published'}" class="muted" th:text="${urls.shopHost(s.slug)}"></span>
+            <span th:if="${s.slug == null}" class="muted">not chosen yet</span>
+          </td>
+          <td th:switch="${s.status}">
+            <span th:case="'published'" class="badge good">Live</span>
+            <span th:case="'pending_review'" class="badge warn">Review and publish</span>
+            <span th:case="'draft'" class="badge neutral">Draft</span>
+            <span th:case="'hidden'" class="badge neutral">Hidden</span>
+          </td>
+          <td>
+            <th:block th:if="${s.status == 'published'}">
+              <span th:if="${s.liveCheckOk == true}" class="badge good">OK</span>
+              <span th:if="${s.liveCheckOk == false}" class="badge crit">Problem</span>
+              <span th:if="${s.liveCheckOk == null and s.liveCheckDetail != null}" class="badge neutral">Checking</span>
+              <span th:if="${s.liveCheckOk == null and s.liveCheckDetail == null}" class="badge neutral">Not checked yet</span>
+              <div class="small muted" th:text="${s.liveCheckDetail}"></div>
+            </th:block>
+          </td>
+          <td class="nowrap"><a class="btn small ghost" th:href="@{/admin/sellers/{id}(id=${s.id})}">Open</a></td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Services</h2>
+    <dl class="kv">
+      <dt>AI</dt><dd th:text="${agentMode}"></dd>
+      <dt>Email</dt><dd th:text="${mailMode}"></dd>
+      <dt>Group mailbox</dt><dd th:text="${mailFrom}"></dd>
+    </dl>
+  </div>
+
+  <div class="panel" th:if="${!recentEmail.isEmpty()}">
+    <h2>Recent email</h2>
+    <div class="scroll"><table class="list"><tbody>
+      <tr th:each="m : ${recentEmail}">
+        <td class="small nowrap" th:text="${#temporals.format(m.createdAt, 'dd MMM HH:mm')}"></td>
+        <td class="small"><span th:text="'To ' + ${m.toAddress}"></span><br><strong th:text="${m.subject}"></strong></td>
+        <td>
+          <span th:if="${m.result == 'SENT'}" class="badge good">Sent</span>
+          <span th:if="${m.result == 'SIMULATED'}" class="badge neutral">Simulated</span>
+          <span th:if="${m.result.startsWith('FAILED')}" class="badge crit" th:title="${m.result}">Failed</span>
+        </td>
+      </tr>
+    </tbody></table></div>
+  </div>
+</main>
+</body>
+</html>

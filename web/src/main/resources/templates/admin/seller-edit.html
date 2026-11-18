@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head(${seller.shopName ?: seller.name} + ' · ' + ${group.name})}"></head>
+<body>
+<header th:replace="~{fragments :: adminBar}"></header>
+<main class="wrap narrow admin">
+  <th:block th:replace="~{fragments :: flash}"></th:block>
+  <p class="small"><a href="/admin">← Dashboard</a></p>
+
+  <div class="row between">
+    <h1 th:text="${seller.shopName ?: seller.name}">Shop</h1>
+    <span th:switch="${seller.status}">
+      <span th:case="'published'" class="badge good">Live</span>
+      <span th:case="'pending_review'" class="badge warn">Ready for your review</span>
+      <span th:case="'draft'" class="badge neutral">Draft</span>
+      <span th:case="'hidden'" class="badge neutral">Hidden</span>
+    </span>
+  </div>
+
+  <!-- Publish / live status -->
+  <div class="panel">
+    <th:block th:if="${seller.status != 'published'}">
+      <p>Check every value with the seller. Values the assistant was unsure of are <span class="badge warn">highlighted</span>. Save your changes, then publish.</p>
+      <div class="row">
+        <form th:action="@{/admin/sellers/{id}/publish(id=${seller.id})}" method="post" class="inline">
+          <button class="btn" type="submit" data-confirm="Publish this shop? It will be visible to everyone.">🚀 Publish</button>
+        </form>
+        <a class="btn ghost" th:href="@{/admin/sellers/{id}/preview(id=${seller.id})}" target="_blank" rel="noopener">Preview</a>
+        <a class="btn ghost" th:if="${onb != null and seller.status != 'hidden'}" th:href="@{/admin/onboarding/{id}(id=${onb.id})}">Talk to the assistant</a>
+      </div>
+      <p class="hint" th:if="${onb != null and onb.noteForAdmin != null}" th:text="'Assistant’s note: ' + ${onb.noteForAdmin}"></p>
+    </th:block>
+    <th:block th:if="${seller.status == 'published'}">
+      <p>
+        Live at <a th:href="${urls.shopUrl(seller.slug)}" target="_blank" rel="noopener" th:text="${urls.shopHost(seller.slug)}"></a>
+        <span th:if="${seller.liveCheckOk == true}" class="badge good">Check OK</span>
+        <span th:if="${seller.liveCheckOk == false}" class="badge crit">Problem</span>
+        <span th:if="${seller.liveCheckOk == null}" class="badge neutral">Checking</span>
+      </p>
+      <p class="small muted">
+        <span th:text="${seller.liveCheckDetail}"></span>
+        <span th:if="${seller.liveCheckAt}" th:text="' · ' + ${#temporals.format(seller.liveCheckAt, 'dd MMM HH:mm:ss')}"></span>
+      </p>
+      <div class="row">
+        <form th:action="@{/admin/sellers/{id}/recheck(id=${seller.id})}" method="post" class="inline"><button class="btn small ghost" type="submit">↻ Check again</button></form>
+        <form th:action="@{/admin/sellers/{id}/hide(id=${seller.id})}" method="post" class="inline">
+          <button class="btn small danger" type="submit" data-confirm="Hide this shop? Its page will show 'not found'.">Hide shop</button>
+        </form>
+      </div>
+    </th:block>
+  </div>
+
+  <!-- Edit -->
+  <form th:action="@{/admin/sellers/{id}(id=${seller.id})}" method="post" class="panel">
+    <h2>Shop details</h2>
+    <label for="slug">Web address</label>
+    <div class="row">
+      <input id="slug" name="slug" type="text" class="slug" th:value="${seller.slug}" pattern="[a-z][a-z0-9\-]{0,28}[a-z0-9]" maxlength="30">
+      <span class="muted" th:text="'.' + ${urls.domain()}"></span>
+    </div>
+    <p class="hint">Lowercase Latin letters, digits and hyphens, starting with a letter.</p>
+    <div class="grid2">
+      <div><label for="sname">Seller's name</label><input id="sname" name="name" type="text" maxlength="80" required th:value="${seller.name}"></div>
+      <div><label for="wa">WhatsApp</label><input id="wa" name="whatsapp" type="tel" maxlength="20" th:value="${seller.whatsapp}"></div>
+    </div>
+    <label for="shopName">Shop name</label>
+    <input id="shopName" name="shopName" type="text" maxlength="80" required th:value="${seller.shopName}" th:classappend="${seller.unsure('shop_name')} ? 'unsure'">
+    <label for="location">Location</label>
+    <input id="location" name="location" type="text" maxlength="120" th:value="${seller.location}" th:classappend="${seller.unsure('location')} ? 'unsure'">
+    <label for="bio">About</label>
+    <textarea id="bio" name="bio" maxlength="1200" th:text="${seller.bio}" th:classappend="${seller.unsure('bio')} ? 'unsure'"></textarea>
+
+    <h2 class="mt">Products</h2>
+    <div class="edit-product" th:each="p, st : ${products}">
+      <div>
+        <img th:if="${p.imageUrl() != null}" class="thumb" th:src="${p.imageUrl()}" alt="">
+        <div th:unless="${p.imageUrl() != null}" class="noimg">no photo</div>
+      </div>
+      <div>
+        <input type="hidden" th:name="'products[' + ${st.index} + '].id'" th:value="${p.id}">
+        <label class="small">Name</label>
+        <input type="text" maxlength="120" th:name="'products[' + ${st.index} + '].name'" th:value="${p.name}" th:classappend="${p.unsure('name')} ? 'unsure'">
+        <label class="small">Description</label>
+        <input type="text" maxlength="600" th:name="'products[' + ${st.index} + '].description'" th:value="${p.description}" th:classappend="${p.unsure('description')} ? 'unsure'">
+        <div class="grid2">
+          <div>
+            <label class="small">Price (₹) <span class="muted">blank = "Ask for price"</span></label>
+            <input type="text" inputmode="decimal" th:name="'products[' + ${st.index} + '].price'" th:value="${p.priceRupeesText()}" th:classappend="${p.unsure('price')} ? 'unsure'">
+          </div>
+          <div>
+            <label class="small">Per</label>
+            <input type="text" maxlength="40" th:name="'products[' + ${st.index} + '].unit'" th:value="${p.unit}" th:classappend="${p.unsure('unit')} ? 'unsure'">
+          </div>
+        </div>
+        <p class="small muted" th:if="${p.unsure('photo')}"><span class="badge warn">check</span> The assistant was not sure this photo matches.</p>
+        <div class="row mt">
+          <label class="plain small">
+            <input type="checkbox" value="true" th:name="'products[' + ${st.index} + '].available'" th:checked="${p.isAvailable}"> Available
+            <input type="hidden" value="on" th:name="'_products[' + ${st.index} + '].available'">
+          </label>
+          <label class="plain small">
+            <input type="checkbox" value="true" th:name="'products[' + ${st.index} + '].remove'"> Remove
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="edit-product new">
+      <div><div class="noimg">new</div></div>
+      <div>
+        <label class="small">Add a product (optional)</label>
+        <input type="text" maxlength="120" placeholder="Name" th:name="'products[' + ${products.size()} + '].name'">
+        <input type="text" maxlength="600" placeholder="Description" class="mt" th:name="'products[' + ${products.size()} + '].description'">
+        <div class="grid2 mt">
+          <input type="text" inputmode="decimal" placeholder="Price (₹)" th:name="'products[' + ${products.size()} + '].price'">
+          <input type="text" maxlength="40" placeholder="Per (each, per kg…)" th:name="'products[' + ${products.size()} + '].unit'">
+        </div>
+        <input type="hidden" value="true" th:name="'products[' + ${products.size()} + '].available'">
+      </div>
+    </div>
+
+    <p class="mt"><button class="btn" type="submit">Save changes</button></p>
+  </form>
+</main>
+<script src="/js/admin.js"></script>
+</body>
+</html>

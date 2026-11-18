@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title th:text="${shop.shopName ?: shop.name} + ' · ' + ${group.name}">Shop</title>
+  <meta name="description" th:content="${shop.bio}">
+  <meta name="robots" content="noindex" th:if="${preview}">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="preview-bar" th:if="${preview}">
+  <div class="wrap row between">
+    <span th:text="'Preview · status: ' + ${shop.status}">Preview</span>
+    <a th:href="@{/admin/sellers/{id}(id=${shop.id})}">← Back to editing</a>
+  </div>
+</div>
+<header class="shop-hero">
+  <div class="wrap">
+    <a class="back" th:href="${mainUrl}" th:text="'← ' + ${group.name}">Group</a>
+    <h1 th:text="${shop.shopName ?: shop.name}">Shop</h1>
+    <p class="location" th:if="${shop.location}" th:text="'📍 ' + ${shop.location}"></p>
+    <div class="trust-row">
+      <span class="badge good" th:text="'Member of ' + ${group.name}">Member</span>
+      <span class="badge trust" th:text="'🔒 ' + ${shopHost}">secure</span>
+    </div>
+    <div class="row">
+      <a class="btn" href="#products">See products</a>
+      <a class="btn secondary" href="#contact">Send a message</a>
+      <a class="btn wa" th:if="${shop.whatsappDigits() != null}" th:href="'https://wa.me/' + ${shop.whatsappDigits()}" rel="noopener">WhatsApp</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="block" id="products">
+    <h2>Products</h2>
+    <p class="muted" th:if="${products.isEmpty()}">Products coming soon. Send a message to ask what's available.</p>
+    <div class="products">
+      <article class="product" th:each="p : ${products}">
+        <div class="photo">
+          <img th:if="${p.imageUrl() != null}" th:src="${p.imageUrl()}" th:alt="${p.name}" loading="lazy">
+          <span th:unless="${p.imageUrl() != null}" aria-hidden="true">✿</span>
+        </div>
+        <div class="body">
+          <h3 th:text="${p.name}">Product</h3>
+          <p class="small" th:if="${!#strings.isEmpty(p.description)}" th:text="${p.description}"></p>
+          <div class="price"><span th:text="${p.priceLabel()}">₹0</span> <span class="unit" th:if="${p.pricePaise != null}" th:text="${p.unit}"></span></div>
+          <span class="badge neutral" th:if="${preview and !p.isAvailable}">Hidden: not available</span>
+          <a class="btn small secondary ask" href="#contact" th:attr="data-product=${p.name}">Ask / order</a>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="block" id="about" th:if="${!#strings.isEmpty(shop.bio)}">
+    <h2>About</h2>
+    <div class="about">
+      <p th:text="${shop.bio}"></p>
+      <p class="small muted" th:text="${shop.name} + ' · ' + ${group.name}"></p>
+    </div>
+  </section>
+
+  <section class="block" id="contact">
+    <h2>Send a message</h2>
+    <div class="contact">
+      <div class="alert ok" th:if="${sent}">Thank you! Your message has been received. You will get a reply soon.</div>
+      <div class="alert err" th:if="${formError}" th:text="${formError}"></div>
+      <form method="post" action="/contact" th:unless="${preview}">
+        <div class="grid2">
+          <div><label for="name">Your name</label><input id="name" name="name" type="text" maxlength="100" th:value="${form?.name()}"></div>
+          <div><label for="phone">Phone</label><input id="phone" name="phone" type="tel" maxlength="20" th:value="${form?.phone()}"></div>
+        </div>
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" maxlength="200" th:value="${form?.email()}">
+        <p class="hint">Give an email or a phone number so we can reply.</p>
+        <label for="message">Message</label>
+        <textarea id="message" name="message" maxlength="4000" required th:text="${form?.message()}"
+                  placeholder="What would you like to order or ask?"></textarea>
+        <div class="hp" aria-hidden="true"><label for="website">Leave this empty</label><input id="website" type="text" name="website" tabindex="-1" autocomplete="off"></div>
+        <p class="mt"><button class="btn" type="submit">Send message</button></p>
+      </form>
+      <p class="muted" th:if="${preview}">The contact form is disabled in preview.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <span th:text="${shop.shopName ?: shop.name}"></span> is part of
+    <a th:href="${mainUrl}" th:text="${group.name}"></a>: many small sellers sharing one website.
+  </div>
+</footer>
+<script src="/js/shop.js"></script>
+</body>
+</html>

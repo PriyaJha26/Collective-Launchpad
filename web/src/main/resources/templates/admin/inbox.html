@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="6" th:if="${waiting}">
+  <title th:text="'Inbox · ' + ${group.name}">Inbox</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<header th:replace="~{fragments :: adminBar}"></header>
+<main class="wrap narrow admin">
+  <th:block th:replace="~{fragments :: flash}"></th:block>
+  <div class="row between">
+    <h1>Inbox</h1>
+    <nav class="row small">
+      <a href="/admin/inbox" th:classappend="${show != 'done'} ? 'muted'">Open</a>
+      <a href="/admin/inbox?show=done" th:classappend="${show == 'done'} ? 'muted'">Answered and closed</a>
+    </nav>
+  </div>
+  <p class="muted" th:if="${rows.isEmpty()}">Nothing here.</p>
+
+  <article th:each="r : ${rows}" class="enquiry" th:id="'enquiry-' + ${r.enquiry().id}"
+           th:classappend="${r.enquiry().urgency == 'high'} ? 'high'">
+    <div class="row between small">
+      <span>
+        <strong th:text="${r.seller().shopName ?: r.seller().name}"></strong>
+        · <span th:text="${#temporals.format(r.enquiry().createdAt, 'dd MMM HH:mm')}"></span>
+      </span>
+      <span class="row">
+        <span class="badge neutral" th:if="${r.enquiry().category}" th:text="${r.enquiry().category}"></span>
+        <span class="badge crit" th:if="${r.enquiry().urgency == 'high'}">urgent</span>
+        <span class="badge good" th:if="${r.enquiry().status == 'replied'}">replied</span>
+        <span class="badge neutral" th:if="${r.enquiry().status == 'closed'}">closed</span>
+      </span>
+    </div>
+    <p class="small mt">
+      From <strong th:text="${r.enquiry().customerName ?: 'a customer'}"></strong>
+      <span th:if="${r.enquiry().customerEmail}" th:text="' · ' + ${r.enquiry().customerEmail}"></span>
+      <span th:if="${r.enquiry().customerPhone}" th:text="' · ☎ ' + ${r.enquiry().customerPhone}"></span>
+    </p>
+    <div class="orig" th:text="${r.enquiry().message}"></div>
+
+    <th:block th:if="${r.enquiry().isOpen()}">
+      <p class="muted row" th:if="${r.draft() == null and r.enquiry().aiError == null}"><span class="spinner"></span> The assistant is drafting a reply…</p>
+      <div class="alert err small" th:if="${r.draft() == null and r.enquiry().aiError != null}" th:text="'Draft failed: ' + ${r.enquiry().aiError}"></div>
+
+      <ul class="checks small" th:if="${r.draft() != null and !r.draft().checkPoints.isEmpty()}">
+        <li><strong>Check with the seller before sending:</strong></li>
+        <li th:each="c : ${r.draft().checkPoints}" th:text="${c.asText()}"></li>
+      </ul>
+      <div class="alert err small" th:if="${r.draft() != null and r.draft().sendError != null}" th:text="${r.draft().sendError}"></div>
+
+      <form th:if="${r.enquiry().hasEmail()}" th:action="@{/admin/enquiries/{id}/send(id=${r.enquiry().id})}" method="post">
+        <label class="small" th:text="${r.draft() != null} ? 'Reply (drafted by the assistant, edit freely)' : 'Write a reply'">Reply</label>
+        <textarea name="reply" class="tall" maxlength="6000" th:text="${r.draft() != null} ? ${r.draft().body} : ''"></textarea>
+        <div class="row mt">
+          <button class="btn" type="submit" data-confirm="Send this reply to the customer?">Approve and send</button>
+        </div>
+      </form>
+      <div class="alert info small" th:unless="${r.enquiry().hasEmail()}">
+        This customer left only a phone number. Call or WhatsApp them<span th:if="${r.draft() != null}"> (the draft below can help)</span>, then close the enquiry.
+        <div class="pre mt" th:if="${r.draft() != null}" th:text="${r.draft().body}"></div>
+      </div>
+      <div class="row mt">
+        <form th:action="@{/admin/enquiries/{id}/redraft(id=${r.enquiry().id})}" method="post" class="inline"><button class="btn small ghost" type="submit">↻ New draft</button></form>
+        <form th:if="${r.draft() != null}" th:action="@{/admin/enquiries/{id}/discard(id=${r.enquiry().id})}" method="post" class="inline"><button class="btn small ghost" type="submit">Discard draft</button></form>
+        <form th:action="@{/admin/enquiries/{id}/close(id=${r.enquiry().id})}" method="post" class="inline"><button class="btn small ghost" type="submit">Close</button></form>
+      </div>
+    </th:block>
+
+    <th:block th:if="${r.sent() != null}">
+      <p class="small muted mt" th:text="'Reply sent ' + ${#temporals.format(r.sent().sentAt, 'dd MMM HH:mm')}"></p>
+      <div class="orig" th:text="${r.sent().body}"></div>
+    </th:block>
+  </article>
+</main>
+<script src="/js/admin.js"></script>
+</body>
+</html>

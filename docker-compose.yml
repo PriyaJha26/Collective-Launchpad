@@ -1,0 +1,86 @@
+# Collective Launchpad on the GoDaddy Docker server.
+# Only Caddy publishes ports. web, agent and db are reachable only on the private network.
+# Secrets come from .env (git-ignored), and each service receives only the variables it needs:
+# the Claude key goes to agent only; the database and SMTP passwords go to web (and db) only.
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+      ACME_CA: ${ACME_CA:-https://acme-v02.api.letsencrypt.org/directory}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
+  web:
+    build: ./web
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
+      PUBLIC_SCHEME: https
+      PUBLIC_PORT: "0"
+      COOKIE_SECURE: "true"
+      DB_URL: jdbc:postgresql://db:5432/launchpad
+      DB_USER: launchpad
+      DB_PASSWORD: ${DB_PASSWORD}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN}
+      AGENT_URL: http://agent:8000
+      MAIL_FROM: ${MAIL_FROM}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      GROUP_NAME: ${GROUP_NAME}
+      GROUP_TAGLINE: ${GROUP_TAGLINE:-}
+      GROUP_DESCRIPTION: ${GROUP_DESCRIPTION:-}
+      GROUP_LOCATION: ${GROUP_LOCATION:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      SEED_SAMPLE_SHOP: ${SEED_SAMPLE_SHOP:-false}
+      COST_DOMAIN_YEAR: ${COST_DOMAIN_YEAR:-999}
+      COST_EMAIL_MONTH: ${COST_EMAIL_MONTH:-150}
+      COST_HOSTING_MONTH: ${COST_HOSTING_MONTH:-400}
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  agent:
+    build: ./agent
+    restart: unless-stopped
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN}
+      WEB_INTERNAL_URL: http://web:8080
+      AGENT_MODE: ${AGENT_MODE:-auto}
+
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: launchpad
+      POSTGRES_USER: launchpad
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U launchpad -d launchpad"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  db_data:
+  uploads:
+  caddy_data:
+  caddy_config:

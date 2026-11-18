@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title)">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title th:text="${title}">Launchpad</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<header class="admin-bar" th:fragment="adminBar">
+  <div class="wrap">
+    <a class="brand" href="/admin" th:text="'◆ ' + ${group.name}">Group</a>
+    <nav>
+      <a href="/admin">Dashboard</a>
+      <a href="/admin/sellers/new">Add a seller</a>
+      <a href="/admin/inbox">Inbox</a>
+      <a href="/" target="_blank" rel="noopener">Public site ↗</a>
+      <form th:action="@{/logout}" method="post" class="inline"><button class="linklike" type="submit">Log out</button></form>
+    </nav>
+  </div>
+</header>
+<th:block th:fragment="flash">
+  <div class="alert ok" th:if="${notice}" th:text="${notice}"></div>
+  <div class="alert err" th:if="${error}" th:text="${error}"></div>
+</th:block>
+</body>
+</html>
