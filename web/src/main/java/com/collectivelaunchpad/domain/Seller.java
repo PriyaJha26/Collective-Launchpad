@@ -5,6 +5,12 @@ import java.util.Arrays;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import com.collectivelaunchpad.i18n.Languages;
+import com.fasterxml.jackson.databind.JsonNode;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -29,6 +35,12 @@ public class Seller {
     public String location;
     public String language;
     public String whatsapp;
+    /** Customers pay this UPI ID directly. */
+    @Column(name = "upi_id")
+    public String upiId;
+    /** "admin" (added by the superadmin) or "self" (registered on the website). */
+    @Column(name = "registered_by")
+    public String registeredBy = "admin";
     public String status = Entities.SellerStatus.DRAFT;
     @Column(name = "review_fields")
     public String reviewFields = "";
@@ -44,10 +56,34 @@ public class Seller {
     public OffsetDateTime createdAt;
     @Column(name = "updated_at")
     public OffsetDateTime updatedAt = OffsetDateTime.now();
+    /** Shop texts in other languages: {"hi": {"shop_name": .., "bio": .., "location": ..}}. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    public JsonNode i18n;
+    @Column(name = "i18n_source_hash")
+    public String i18nSourceHash;
 
     @PreUpdate
     void touch() {
         updatedAt = OffsetDateTime.now();
+    }
+
+    // ------------------------------------------------------------------ in the reader's language
+
+    public String shopNameIn(String lang) {
+        String own = shopName == null || shopName.isBlank() ? name : shopName;
+        return Languages.pick(i18n, lang, "shop_name", own);
+    }
+
+    public String bioIn(String lang) {
+        return Languages.pick(i18n, lang, "bio", bio);
+    }
+
+    public String locationIn(String lang) {
+        return Languages.pick(i18n, lang, "location", location);
+    }
+
+    public String nameIn(String lang) {
+        return Languages.pick(i18n, lang, "name", name);
     }
 
     public boolean isPublished() {

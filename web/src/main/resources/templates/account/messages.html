@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<head th:replace="~{fragments :: head(#{account.messages} + ' · ' + ${group.name})}"></head>
+<body>
+<header th:replace="~{fragments :: siteBar}"></header>
+<main class="wrap narrow">
+  <th:block th:replace="~{fragments :: flash}"></th:block>
+  <h1 class="mt" th:text="#{account.messages}">My messages</h1>
+  <p class="muted" th:if="${messages.isEmpty()}" th:text="#{account.noMessages}">No messages yet.</p>
+  <article class="enquiry" th:each="m : ${messages}">
+    <div class="row between small">
+      <strong th:text="${shops[m.sellerId].shopNameIn(lang)}"></strong>
+      <span th:text="${#temporals.format(m.createdAt, 'dd MMM HH:mm')}"></span>
+    </div>
+    <span class="badge neutral" th:if="${m.topic != null}" th:text="#{${'topic.' + m.topic}}"></span>
+    <div class="orig" th:text="${m.message}"></div>
+    <th:block th:if="${replies[m.id].isPresent()}" th:with="r=${replies[m.id].get()}">
+      <div class="small muted" th:text="#{account.replyFrom(${shops[m.sellerId].shopNameIn(lang)})}"></div>
+      <div class="reply-box" th:text="${r.bodyIn(lang)}"></div>
+      <th:block th:replace="~{fragments :: original(${r.body}, ${r.isTranslatedFor(lang)})}"></th:block>
+    </th:block>
+    <p class="small muted" th:unless="${replies[m.id].isPresent()}" th:text="#{account.waitingReply}">Waiting for the seller's reply.</p>
+  </article>
+</main>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<head th:replace="~{fragments :: head(#{order.title(${order.id})})}"></head>
+<body>
+<header th:replace="~{fragments :: siteBar}"></header>
+<main class="wrap narrow">
+  <th:block th:replace="~{fragments :: flash}"></th:block>
+  <p class="small mt"><a href="/account/orders" th:text="'← ' + #{account.orders}">← My orders</a></p>
+  <h1 th:text="#{order.title(${order.id})}">Order</h1>
+  <p><span th:text="#{order.from}">From</span> <a th:href="${urls.shopUrl(seller.slug)}" th:text="${seller.shopNameIn(lang)}">Shop</a> ·
+    <span th:text="${#temporals.format(order.createdAt, 'dd MMM yyyy, HH:mm')}"></span></p>
+
+  <div class="steps" th:unless="${order.isClosedUnsuccessfully()}">
+    <span class="done" th:text="#{order.step.placed}">Placed</span>
+    <span th:classappend="${order.status == 'accepted' or order.status == 'ready' or order.status == 'completed'} ? 'done'" th:text="#{order.status.accepted}">Accepted</span>
+    <span th:classappend="${order.status == 'ready' or order.status == 'completed'} ? 'done'" th:text="#{order.status.ready}">Ready / on the way</span>
+    <span th:classappend="${order.status == 'completed'} ? 'done'" th:text="#{order.status.completed}">Completed</span>
+    <span th:classappend="${order.isPaid()} ? 'done'" th:text="#{order.paid}">Paid</span>
+  </div>
+  <div class="alert err" th:if="${order.isClosedUnsuccessfully()}">
+    <span th:text="#{${'order.status.' + order.status}}"></span><span th:if="${order.sellerNote}" th:text="': ' + ${order.sellerNoteIn(lang)}"></span>
+    <th:block th:replace="~{fragments :: original(${order.sellerNote}, ${order.sellerNote != null and order.sellerNoteIn(lang) != order.sellerNote})}"></th:block>
+  </div>
+
+  <!-- Paying by UPI: straight to the seller -->
+  <div class="pay-box" th:if="${upiLink != null and !order.isPaid() and !order.isClosedUnsuccessfully()}">
+    <h2 th:text="#{order.payUpi(${order.totalLabel()})}">Pay</h2>
+    <p><span th:text="#{order.payTo}">Pay the seller directly to</span> <span class="upi" th:text="${seller.upiId}"></span>, <span th:text="#{order.payNote(${order.id})}">with "Order 1" in the note.</span></p>
+    <div class="row">
+      <a class="btn" th:href="${upiLink}" th:text="#{order.openUpi}">Open my UPI app</a>
+      <form th:if="${order.customerMarkedPaidAt == null}" th:action="@{/account/orders/{id}/paid(id=${order.id})}" method="post" class="inline">
+        <button class="btn secondary" type="submit" th:text="#{order.iPaid}">I have paid</button>
+      </form>
+    </div>
+    <p class="hint" th:text="#{order.upiHint}">The button works on a phone with a UPI app.</p>
+    <p class="small" th:if="${order.customerMarkedPaidAt != null}" th:text="#{order.markedPaid}">You marked this as paid. The seller will confirm.</p>
+  </div>
+  <div class="alert info" th:if="${order.paymentMethod == 'cod' and !order.isPaid() and !order.isClosedUnsuccessfully()}"
+       th:text="#{order.payCash(${order.totalLabel()})}"></div>
+
+  <div class="panel">
+    <div class="line" th:each="it : ${items}">
+      <div class="noimg"></div>
+      <div><span th:text="${itemNames.name(it, lang)}"></span><div class="small muted" th:text="${it.quantity} + ' × ' + ${it.priceLabel()} + ' ' + ${itemNames.unit(it, lang)}"></div></div>
+      <strong th:text="${it.lineTotalLabel()}"></strong>
+    </div>
+    <p class="total mt" th:text="#{common.total(${order.totalLabel()})}"></p>
+    <dl class="kv">
+      <dt th:text="#{checkout.delivery}">Delivery</dt><dd class="pre" th:text="${order.delivery == 'Pickup'} ? #{order.pickup} : ${order.delivery}"></dd>
+      <dt th:text="#{common.phone}">Phone</dt><dd th:text="${order.customerPhone}"></dd>
+      <dt th:text="#{order.payment}">Payment</dt><dd th:text="#{${'order.payment.' + order.paymentMethod}} + ' · ' + (${order.isPaid()} ? #{order.paid} : #{order.notPaid})"></dd>
+      <th:block th:if="${order.note}"><dt th:text="#{order.yourNote}">Your note</dt><dd th:text="${order.note}"></dd></th:block>
+    </dl>
+  </div>
+
+  <div class="row">
+    <a class="btn secondary small" th:href="@{/shops/{s}/message(s=${seller.slug},topic='order')}" th:text="#{order.messageSeller}">Message the seller</a>
+    <a class="btn wa small" th:if="${seller.whatsappDigits() != null}" th:href="'https://wa.me/' + ${seller.whatsappDigits()}" rel="noopener">WhatsApp</a>
+    <form th:if="${order.status == 'placed'}" th:action="@{/account/orders/{id}/cancel(id=${order.id})}" method="post" class="inline">
+      <button class="btn danger small" type="submit" th:attr="data-confirm=#{order.cancelConfirm}" th:text="#{order.cancel}">Cancel order</button>
+    </form>
+  </div>
+</main>
+<script src="/js/admin.js"></script>
+</body>
+</html>

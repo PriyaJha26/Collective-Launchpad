@@ -31,9 +31,11 @@ public class SiteController {
     private final EnquiryService enquiries;
     private final RateLimiter rateLimiter;
     private final SiteUrls urls;
+    private final com.collectivelaunchpad.i18n.Msg msg;
 
     public SiteController(GroupRepository groups, SellerRepository sellers, ProductRepository products,
-                          EnquiryService enquiries, RateLimiter rateLimiter, SiteUrls urls) {
+                          EnquiryService enquiries, RateLimiter rateLimiter, SiteUrls urls, com.collectivelaunchpad.i18n.Msg msg) {
+        this.msg = msg;
         this.groups = groups;
         this.sellers = sellers;
         this.products = products;
@@ -50,10 +52,16 @@ public class SiteController {
             model.addAttribute("sent", req.getParameter("sent") != null);
             return "site/shop";
         }
+        groupModel(model);
+        model.addAttribute("sent", req.getParameter("sent") != null);
+        return "site/group";
+    }
+
+    /** The group page's model; also used when the "Contact us" form is shown again with an error. */
+    public void groupModel(Model model) {
         model.addAttribute("group", group());
         model.addAttribute("shops", sellers.findByStatusOrderByShopNameAsc(SellerStatus.PUBLISHED));
         model.addAttribute("urls", urls);
-        return "site/group";
     }
 
     @PostMapping("/contact")
@@ -74,7 +82,7 @@ public class SiteController {
         }
         if (!rateLimiter.tryAcquire(req.getRemoteAddr())) {
             res.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-            return formError(model, tenant.shop(), form, "Too many messages from your connection. Please try again in a few minutes.");
+            return formError(model, tenant.shop(), form, msg.get("err.rateLimit"));
         }
         try {
             enquiries.receive(tenant.shop(), form);
@@ -100,7 +108,7 @@ public class SiteController {
                 : products.findBySellerIdAndIsAvailableTrueOrderBySortOrderAscIdAsc(shop.id));
         model.addAttribute("group", group());
         model.addAttribute("mainUrl", urls.mainUrl());
-        model.addAttribute("shopHost", shop.slug == null ? "(no address yet)" : urls.shopHost(shop.slug));
+        model.addAttribute("shopHost", shop.slug == null ? msg.get("shop.noAddress") : urls.shopHost(shop.slug));
         model.addAttribute("preview", preview);
     }
 

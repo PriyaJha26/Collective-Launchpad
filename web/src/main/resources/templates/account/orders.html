@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<head th:replace="~{fragments :: head(#{account.orders} + ' · ' + ${group.name})}"></head>
+<body>
+<header th:replace="~{fragments :: siteBar}"></header>
+<main class="wrap narrow">
+  <th:block th:replace="~{fragments :: flash}"></th:block>
+  <h1 class="mt" th:text="#{account.orders}">My orders</h1>
+  <p class="muted" th:if="${orders.isEmpty()}"><span th:text="#{account.noOrders}">No orders yet.</span> <a href="/products" th:text="#{common.browseProducts}">Browse products</a>.</p>
+  <a class="order-card" th:each="o : ${orders}" th:href="@{/account/orders/{id}(id=${o.id})}">
+    <div class="row between">
+      <strong th:text="'#' + ${o.id} + ' · ' + ${shops[o.sellerId].shopNameIn(lang)}"></strong>
+      <span th:text="${o.totalLabel()}"></span>
+    </div>
+    <div class="small muted" th:text="${#temporals.format(o.createdAt, 'dd MMM yyyy')} + ' · ' + #{${'order.status.' + o.status}}"></div>
+    <div class="small" th:if="${items[o.id] != null}">
+      <span th:each="it, st : ${items[o.id]}" th:text="${it.quantity} + ' × ' + ${itemNames.name(it, lang)} + (${st.last} ? '' : ', ')"></span>
+    </div>
+    <span th:if="${o.isPaid()}" class="badge good" th:text="#{order.paid}">Paid</span>
+    <span th:if="${!o.isPaid() and !o.isClosedUnsuccessfully()}" class="badge neutral" th:text="#{${'order.payment.' + o.paymentMethod}}"></span>
+  </a>
+</main>
+</body>
+</html>

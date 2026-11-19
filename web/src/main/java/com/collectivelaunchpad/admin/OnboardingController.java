@@ -12,6 +12,8 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.collectivelaunchpad.domain.Group;
+import com.collectivelaunchpad.domain.GroupRequest;
+import com.collectivelaunchpad.site.GroupRequestService;
 import com.collectivelaunchpad.domain.OnboardingSession;
 import com.collectivelaunchpad.domain.Repositories.GroupRepository;
 import com.collectivelaunchpad.domain.Repositories.ProductRepository;
@@ -30,18 +32,29 @@ public class OnboardingController {
     private final ProductRepository products;
     private final GroupRepository groups;
 
+    private final GroupRequestService requests;
+
     public OnboardingController(OnboardingService onboarding, SellerRepository sellers, ProductRepository products,
-                                GroupRepository groups) {
+                                GroupRepository groups, GroupRequestService requests) {
         this.onboarding = onboarding;
         this.sellers = sellers;
         this.products = products;
         this.groups = groups;
+        this.requests = requests;
     }
 
+    /** "Add a seller"; with ?request=<id>, pre-filled from a join request sent through the website. */
     @GetMapping("/admin/sellers/new")
-    public String form(Model model) {
+    public String form(@RequestParam(name = "request", required = false) Long requestId, Model model) {
         model.addAttribute("languages", OnboardingService.LANGUAGES);
         model.addAttribute("maxPhotos", UploadService.MAX_FILES_PER_REQUEST);
+        if (requestId != null && !model.containsAttribute("form")) {
+            GroupRequest r = requests.find(requestId);
+            model.addAttribute("form", new String[] {
+                    r.name, r.language == null ? "hi" : r.language, r.phone == null ? "" : r.phone,
+                    GroupRequestService.onboardingNotes(r)});
+        }
+        model.addAttribute("requestId", requestId);
         return "admin/seller-new";
     }
 
@@ -50,6 +63,7 @@ public class OnboardingController {
                          @RequestParam(defaultValue = "hi") String language,
                          @RequestParam(defaultValue = "") String whatsapp,
                          @RequestParam(defaultValue = "") String notes,
+                         @RequestParam(name = "requestId", required = false) Long requestId,
                          @RequestParam(name = "photos", required = false) List<MultipartFile> photos,
                          Model model) {
         try {
@@ -57,11 +71,14 @@ public class OnboardingController {
             // form's "name" field onto the group.
             Group group = groups.findFirstByOrderByIdAsc().orElseThrow();
             OnboardingSession s = onboarding.start(group, new OnboardingService.NewSeller(name, language, whatsapp, notes, photos));
+            if (requestId != null) {
+                requests.linkSeller(requestId, s.sellerId);
+            }
             return "redirect:/admin/onboarding/" + s.id;
         } catch (OnboardingException | UploadService.UploadException e) {
             model.addAttribute("error", e.getMessage());
             model.addAttribute("form", new String[] {name, language, whatsapp, notes});
-            return form(model);
+            return form(requestId, model);
         }
     }
 
@@ -102,7 +119,7 @@ public class OnboardingController {
     /** A readable transcript: admin messages and the questions the agent asked. */
     public record Exchange(String who, String text) {}
 
-    static List<Exchange> exchanges(JsonNode messages) {
+    public static List<Exchange> exchanges(JsonNode messages) {
         List<Exchange> out = new java.util.ArrayList<>();
         if (messages == null || !messages.isArray()) {
             return out;
@@ -121,7 +138,7 @@ public class OnboardingController {
                     if (notes >= 0 && end > notes) {
                         t = t.substring(notes + "<notes>".length(), end).strip(); // first message: just the notes
                     }
-                    out.add(new Exchange("You", t.replaceFirst("^Message from the group admin:\\n", "")));
+                    out.add(new Exchange("You", t.replaceFirst("^Message from the (group admin|seller):\\n", "")));
                 } else if (!user && "tool_use".equals(type) && "ask_seller".equals(b.path("name").asText())) {
                     out.add(new Exchange("Assistant", b.path("input").path("question").asText()));
                 } else if (!user && "text".equals(type) && !b.path("text").asText().isBlank()) {

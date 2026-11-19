@@ -24,6 +24,8 @@
       <div class="label">Waiting for your review</div><div class="value" th:text="${pendingReview}">0</div></a>
     <a class="tile" href="/admin/inbox" th:classappend="${openEnquiries > 0} ? 'attention'">
       <div class="label">Enquiries to answer</div><div class="value" th:text="${openEnquiries}">0</div></a>
+    <a class="tile" href="/admin/requests" th:classappend="${openRequests > 0} ? 'attention'">
+      <div class="label">Join requests and messages</div><div class="value" th:text="${openRequests}">0</div></a>
   </div>
 
   <div class="panel" th:if="${!sessions.isEmpty()}">

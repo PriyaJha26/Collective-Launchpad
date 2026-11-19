@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<head th:replace="~{fragments :: head(#{seller.nav.settings} + ' · ' + ${group.name})}"></head>
+<body>
+<header th:replace="~{fragments :: sellerBar}"></header>
+<main class="wrap narrow admin">
+  <th:block th:replace="~{fragments :: flash}"></th:block>
+  <h1 th:text="#{seller.nav.settings}">Shop settings</h1>
+  <form th:action="@{/seller/shop}" method="post" class="panel">
+    <label for="shopName" th:text="#{seller.shop.name}">Shop name</label>
+    <input id="shopName" name="shopName" type="text" maxlength="80" required th:value="${seller.shopName}">
+
+    <label for="slug" th:text="#{seller.shop.slug}">Web address</label>
+    <div class="row">
+      <input id="slug" name="slug" type="text" class="slug" maxlength="30" th:value="${seller.slug}" th:disabled="${seller.isPublished()}" placeholder="meena">
+      <span class="muted" th:text="'.' + ${urls.domain()}"></span>
+    </div>
+    <p class="hint" th:if="${!seller.isPublished()}" th:text="#{seller.shop.slugHint}">Lowercase English letters, numbers and hyphens.</p>
+
+    <label for="bio" th:text="#{seller.shop.bio}">About your shop</label>
+    <textarea id="bio" name="bio" maxlength="1200" th:text="${seller.bio}"></textarea>
+    <p class="hint" th:text="#{seller.product.translatedHint}">Write in your own language. Customers see it translated into theirs.</p>
+
+    <div class="grid2">
+      <div><label for="location" th:text="#{f.location}">Village / town and district</label><input id="location" name="location" type="text" maxlength="120" th:value="${seller.location}"></div>
+      <div><label for="whatsapp" th:text="#{seller.shop.whatsapp}">WhatsApp number</label><input id="whatsapp" name="whatsapp" type="tel" maxlength="20" th:value="${seller.whatsapp}"></div>
+    </div>
+
+    <label for="upiId" th:text="#{seller.shop.upi}">UPI ID (customers pay you here)</label>
+    <input id="upiId" name="upiId" type="text" maxlength="100" placeholder="meena@okaxis" th:value="${seller.upiId}">
+    <p class="hint" th:text="#{seller.shop.upiHint}">Find it in your UPI app.</p>
+
+    <label for="language" th:text="#{seller.shop.language}">Your language</label>
+    <select id="language" name="language">
+      <option th:each="l : ${languages}" th:value="${l.key}" th:text="${l.value}" th:selected="${lang == l.key}">Hindi</option>
+    </select>
+    <p class="hint" th:text="#{seller.shop.languageHint}">Your dashboard, customer messages and reply drafts are shown in this language.</p>
+
+    <p class="mt"><button class="btn" type="submit" th:text="#{common.save}">Save</button></p>
+  </form>
+</main>
+</body>
+</html>

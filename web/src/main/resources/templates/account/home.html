@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<head th:replace="~{fragments :: head(#{nav.account} + ' · ' + ${group.name})}"></head>
+<body>
+<header th:replace="~{fragments :: siteBar}"></header>
+<main class="wrap narrow">
+  <th:block th:replace="~{fragments :: flash}"></th:block>
+  <h1 class="mt" th:text="#{account.hello(${account.name})}">My account</h1>
+  <div class="row">
+    <a class="btn" href="/account/orders" th:text="#{account.orders}">My orders</a>
+    <a class="btn secondary" href="/account/messages" th:text="#{account.messages}">My messages</a>
+    <a class="btn secondary" href="/products" th:text="#{account.shop}">Shop</a>
+    <a class="btn secondary" th:if="${account.sellerId != null}" href="/seller" th:text="#{account.shopDashboard}">My shop dashboard</a>
+  </div>
+
+  <div class="panel" th:if="${!orders.isEmpty()}">
+    <h2 th:text="#{account.recentOrders}">Recent orders</h2>
+    <a class="order-card" th:each="o : ${orders}" th:href="@{/account/orders/{id}(id=${o.id})}">
+      <div class="row between"><strong th:text="'#' + ${o.id} + ' · ' + ${shops[o.sellerId].shopNameIn(lang)}"></strong><span th:text="${o.totalLabel()}"></span></div>
+      <div class="small muted" th:text="#{${'order.status.' + o.status}} + (${o.isPaid()} ? ' · ' + #{order.paid} : '')"></div>
+    </a>
+  </div>
+
+  <div class="panel" th:if="${account.sellerId == null and !account.isSuperadmin()}">
+    <h2 th:text="#{account.makeThings}">Make things by hand?</h2>
+    <p th:text="#{account.openShop(${group.name})}">Open your own shop with this same account.</p>
+    <a class="btn secondary" href="/register/seller" th:text="#{account.addShop}">Add my shop</a>
+  </div>
+
+  <form th:action="@{/account/profile}" method="post" class="panel">
+    <h2 th:text="#{account.details}">My details</h2>
+    <p class="small muted" th:text="#{account.mobile(${account.phone ?: '—'})}"></p>
+    <label for="name" th:text="#{account.name}">Name</label>
+    <input id="name" name="name" type="text" maxlength="80" required th:value="${account.name}">
+    <label for="email" th:text="#{account.email}">Email (optional, for order updates)</label>
+    <input id="email" name="email" type="email" maxlength="200" th:value="${account.email}">
+    <p class="small muted"><span th:text="#{account.language}">Language</span>: <strong th:text="${siteLanguages[lang]}"></strong>
+      <span th:text="#{account.languageHint}">Change it with 🌐 at the top. Messages and replies are shown in this language.</span></p>
+    <p class="mt"><button class="btn small" type="submit" th:text="#{common.save}">Save</button></p>
+  </form>
+
+  <form th:action="@{/account/password}" method="post" class="panel">
+    <h2 th:text="#{account.changePassword}">Change password</h2>
+    <div class="grid2">
+      <div><label for="current" th:text="#{account.currentPassword}">Current password</label><input id="current" name="current" type="password" autocomplete="current-password" required></div>
+      <div><label for="next" th:text="#{account.newPassword}">New password (8+ characters)</label><input id="next" name="next" type="password" minlength="8" autocomplete="new-password" required></div>
+    </div>
+    <p class="mt"><button class="btn small" type="submit" th:text="#{account.changePassword}">Change password</button></p>
+  </form>
+</main>
+</body>
+</html>

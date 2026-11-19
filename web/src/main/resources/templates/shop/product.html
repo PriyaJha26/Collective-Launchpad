@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<head th:replace="~{fragments :: head(${product.nameIn(lang)} + ' · ' + ${seller.shopNameIn(lang)})}"></head>
+<body>
+<header th:replace="~{fragments :: siteBar}"></header>
+<main class="wrap">
+  <th:block th:replace="~{fragments :: flash}"></th:block>
+  <p class="small mt"><a href="/products" th:text="'← ' + #{products.title}">← All products</a></p>
+  <div class="product-page">
+    <div class="photo">
+      <img th:if="${product.imageUrl() != null}" th:src="${product.imageUrl()}" th:alt="${product.nameIn(lang)}">
+      <span th:unless="${product.imageUrl() != null}" aria-hidden="true">✿</span>
+    </div>
+    <div>
+      <h1 th:text="${product.nameIn(lang)}">Product</h1>
+      <p class="small"><span th:text="#{product.by}">by</span> <a th:href="${urls.shopUrl(seller.slug)}" th:text="${seller.shopNameIn(lang)}">Shop</a>
+        <span class="muted" th:if="${!#strings.isEmpty(seller.location)}" th:text="' · ' + ${seller.locationIn(lang)}"></span></p>
+      <p class="price-big"><span th:replace="~{fragments :: price(${product})}"></span> <span class="unit" th:if="${product.pricePaise != null}" th:text="${product.unitIn(lang)}"></span></p>
+      <p class="muted"><span th:replace="~{fragments :: stock(${product})}"></span></p>
+      <p th:if="${!#strings.isEmpty(product.description)}" th:text="${product.descriptionIn(lang)}"></p>
+
+      <form th:if="${product.canBeOrdered()}" th:action="@{/cart/add}" method="post" class="row">
+        <input type="hidden" name="productId" th:value="${product.id}">
+        <label class="plain" for="qty" th:text="#{product.quantity}">Quantity</label>
+        <input id="qty" class="qty" type="number" name="quantity" value="1" min="1"
+               th:max="${product.stock != null ? product.stock : 100}">
+        <button class="btn" type="submit" th:text="#{product.addToCart}">Add to cart</button>
+      </form>
+      <p class="alert info" th:unless="${product.canBeOrdered()}" th:text="#{product.cannotOrder}">This item cannot be ordered online right now.</p>
+
+      <div class="row mt">
+        <a class="btn secondary small" th:href="@{/shops/{s}/message(s=${seller.slug},product=${product.id},topic='question')}" th:text="#{product.askQuestion}">Ask a question</a>
+        <a class="btn secondary small" th:href="@{/shops/{s}/message(s=${seller.slug},product=${product.id},topic='discount')}" th:text="#{product.askDiscount}">Ask for a discount</a>
+        <a class="btn secondary small" th:href="@{/shops/{s}/message(s=${seller.slug},product=${product.id},topic='custom')}" th:text="#{product.askCustom}">Request a custom order</a>
+      </div>
+      <p class="hint" th:text="${!#strings.isEmpty(seller.upiId)} ? #{product.payUpi} : #{product.payCash}">Payment goes straight to the seller.</p>
+    </div>
+  </div>
+</main>
+</body>
+</html>

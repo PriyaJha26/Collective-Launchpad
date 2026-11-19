@@ -1,22 +1,25 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('Log in · ' + ${group.name})}"></head>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<head th:replace="~{fragments :: head(#{nav.login} + ' · ' + ${group.name})}"></head>
 <body>
+<header th:replace="~{fragments :: siteBar}"></header>
 <main class="wrap login-box">
   <div class="panel">
-    <h1 th:text="${group.name}">Group</h1>
-    <p class="muted">Group admin login</p>
-    <div class="alert err" th:if="${param.error}">Wrong email or password.</div>
-    <div class="alert ok" th:if="${param.logout}">You have logged out.</div>
+    <h1 th:text="#{nav.login}">Log in</h1>
+    <div class="alert err" th:if="${param.error}" th:text="#{login.error}">Wrong mobile number / email or password.</div>
+    <div class="alert err" th:if="${param.locked}" th:text="#{login.locked}">Too many wrong attempts.</div>
+    <div class="alert err" th:if="${param.disabled}" th:text="#{login.disabled}">This account is switched off.</div>
+    <div class="alert ok" th:if="${param.logout}" th:text="#{login.loggedOut}">You have logged out.</div>
     <form th:action="@{/login}" method="post">
-      <label for="email">Email</label>
-      <input id="email" name="email" type="email" autocomplete="username" required autofocus>
-      <label for="password">Password</label>
+      <label for="login" th:text="#{login.id}">Mobile number or email</label>
+      <input id="login" name="login" type="text" autocomplete="username" required autofocus inputmode="email">
+      <label for="password" th:text="#{login.password}">Password</label>
       <input id="password" name="password" type="password" autocomplete="current-password" required>
-      <p class="mt"><button class="btn" type="submit">Log in</button></p>
+      <p class="mt"><button class="btn" type="submit" th:text="#{nav.login}">Log in</button></p>
     </form>
+    <p class="small"><span th:text="#{login.new}">New here?</span> <a href="/register" th:text="#{login.createAccount}">Create a customer account</a> · <a href="/register/seller" th:text="#{reg.title}">Register your shop</a></p>
+    <p class="hint" th:text="#{login.forgot}">Forgot your password? Ask the group to reset it for you.</p>
   </div>
-  <p class="center small"><a href="/">← Back to the site</a></p>
 </main>
 </body>
 </html>

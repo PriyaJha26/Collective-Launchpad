@@ -1,6 +1,5 @@
 package com.collectivelaunchpad.admin;
 
-import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -15,7 +14,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.collectivelaunchpad.domain.Enquiry;
-import com.collectivelaunchpad.domain.Repositories.AdminRepository;
 import com.collectivelaunchpad.domain.Repositories.EnquiryRepository;
 import com.collectivelaunchpad.domain.Repositories.SellerRepository;
 import com.collectivelaunchpad.domain.Seller;
@@ -31,13 +29,11 @@ public class InboxController {
     private final EnquiryService service;
     private final EnquiryRepository enquiries;
     private final SellerRepository sellers;
-    private final AdminRepository admins;
 
-    public InboxController(EnquiryService service, EnquiryRepository enquiries, SellerRepository sellers, AdminRepository admins) {
+    public InboxController(EnquiryService service, EnquiryRepository enquiries, SellerRepository sellers) {
         this.service = service;
         this.enquiries = enquiries;
         this.sellers = sellers;
-        this.admins = admins;
     }
 
     @GetMapping("/admin/inbox")
@@ -58,9 +54,10 @@ public class InboxController {
     }
 
     @PostMapping("/admin/enquiries/{id}/send")
-    public String send(@PathVariable long id, @RequestParam(defaultValue = "") String reply, Principal principal,
+    public String send(@PathVariable long id, @RequestParam(defaultValue = "") String reply,
+                       @org.springframework.security.core.annotation.AuthenticationPrincipal com.collectivelaunchpad.account.AppUser user,
                        RedirectAttributes flash) {
-        long adminId = admins.findByEmailIgnoreCase(principal.getName()).orElseThrow().id;
+        long adminId = user.id();
         try {
             service.approveAndSend(id, reply, adminId);
             flash.addFlashAttribute("notice", "Reply sent.");

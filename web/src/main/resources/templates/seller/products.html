@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<head th:replace="~{fragments :: head(#{seller.nav.products} + ' · ' + ${group.name})}"></head>
+<body>
+<header th:replace="~{fragments :: sellerBar}"></header>
+<main class="wrap narrow admin">
+  <th:block th:replace="~{fragments :: flash}"></th:block>
+  <div class="row between">
+    <h1 th:text="#{seller.products.title}">My products</h1>
+    <a class="btn" href="/seller/products/new" th:text="'+ ' + #{seller.products.add}">+ Add a product</a>
+  </div>
+  <p class="muted" th:if="${products.isEmpty()}"><span th:text="#{seller.products.none}">No products yet.</span> <a href="/seller/products/new" th:text="#{seller.products.add}">Add one</a> · <a href="/seller/assistant" th:text="#{seller.step1.assistant}">assistant</a></p>
+  <div class="panel" th:if="${!products.isEmpty()}">
+    <div class="line" th:each="p : ${products}">
+      <img th:if="${p.imageUrl() != null}" th:src="${p.imageUrl()}" alt="">
+      <div th:unless="${p.imageUrl() != null}" class="noimg"></div>
+      <div>
+        <strong th:text="${p.name}"></strong>
+        <div class="small muted"><span th:replace="~{fragments :: price(${p})}"></span> <span th:text="${p.unit}"></span> · <span th:replace="~{fragments :: stock(${p})}"></span></div>
+        <span class="badge neutral" th:if="${!p.isAvailable}" th:text="#{seller.products.hidden}">Hidden from customers</span>
+        <span class="badge warn" th:if="${p.needsReview}" th:text="#{seller.products.check}">Please check</span>
+      </div>
+      <div class="row">
+        <a class="btn small ghost" th:href="@{/seller/products/{id}(id=${p.id})}" th:text="#{common.edit}">Edit</a>
+        <form th:action="@{/seller/products/{id}/delete(id=${p.id})}" method="post" class="inline">
+          <button class="btn small danger" type="submit" th:attr="data-confirm=#{seller.products.removeConfirm}" th:text="#{cart.remove}">Remove</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</main>
+<script src="/js/admin.js"></script>
+</body>
+</html>

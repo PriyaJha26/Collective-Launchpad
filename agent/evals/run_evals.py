@@ -24,7 +24,7 @@ from app.schemas import ClassifyRequest, DraftReplyRequest, OnboardingTurnReques
 HERE = Path(__file__).parent
 
 CATALOGUE = {
-    "group_name": "Our Village Crafts",
+    "group_name": "Crafts of India",
     "seller": {"name": "Meena Devi", "shop_name": "Meena's Kitchen", "bio": "Home-made sweets from Wardha.", "location": "Wardha"},
     "catalogue": [
         {"name": "Besan ladoo", "price_rupees": 300, "unit": "per kg", "description": "Made in ghee."},
@@ -104,7 +104,7 @@ def run_onboarding(gw) -> int:
     for case in cases:
         print(f"\n=== {case.name}")
         notes = (case / "notes.txt").read_text(encoding="utf-8") if (case / "notes.txt").exists() else ""
-        content = [{"type": "text", "text": f"Seller's name: {case.name}\nSeller's language: Hindi\nGroup: Our Village Crafts\n"
+        content = [{"type": "text", "text": f"Seller's name: {case.name}\nSeller's language: Hindi\nGroup: Crafts of India\n"
                                             f"Shop addresses look like <address>.example.in\n\n<notes>\n{notes}\n</notes>"}]
         for photo in sorted(case.glob("*.jp*g")) + sorted(case.glob("*.png")):
             media = "image/png" if photo.suffix == ".png" else "image/jpeg"

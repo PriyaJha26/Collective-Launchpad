@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<head th:replace="~{fragments :: head(#{order.title(${order.id})})}"></head>
+<body>
+<header th:replace="~{fragments :: sellerBar}"></header>
+<main class="wrap narrow admin">
+  <th:block th:replace="~{fragments :: flash}"></th:block>
+  <p class="small"><a href="/seller/orders" th:text="'← ' + #{seller.nav.orders}">← Orders</a></p>
+  <div class="row between">
+    <h1 th:text="#{order.title(${order.id})}">Order</h1>
+    <span class="badge" th:classappend="${order.isClosedUnsuccessfully()} ? 'crit' : (${order.status == 'completed'} ? 'good' : 'warn')" th:text="#{${'order.status.' + order.status}}"></span>
+  </div>
+  <p class="muted" th:text="${#temporals.format(order.createdAt, 'dd MMM yyyy, HH:mm')}"></p>
+
+  <div class="panel">
+    <h2 th:text="${order.customerName}">Customer</h2>
+    <dl class="kv">
+      <dt th:text="#{common.phone}">Phone</dt><dd><a th:href="'tel:' + ${order.customerPhone}" th:text="${order.customerPhone}"></a></dd>
+      <dt th:text="#{checkout.delivery}">Delivery</dt><dd class="pre" th:text="${order.delivery == 'Pickup'} ? #{order.pickup} : ${order.delivery}"></dd>
+      <dt th:text="#{order.payment}">Payment</dt><dd th:text="#{${'order.payment.' + order.paymentMethod}}"></dd>
+      <th:block th:if="${order.note}"><dt th:text="#{seller.order.note}">Note</dt><dd>
+        <div class="pre" th:text="${order.noteIn(lang)}"></div>
+        <th:block th:replace="~{fragments :: original(${order.note}, ${order.noteIn(lang) != order.note})}"></th:block>
+      </dd></th:block>
+    </dl>
+    <div class="row mt">
+      <a class="btn small wa" th:href="'https://wa.me/' + ${waPhone}" rel="noopener" th:text="#{seller.order.whatsapp}">WhatsApp the customer</a>
+      <a class="btn small ghost" th:href="'tel:' + ${order.customerPhone}" th:text="#{seller.order.call}">Call</a>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="line" th:each="it : ${items}">
+      <div class="noimg"></div>
+      <div><span th:text="${it.name}"></span><div class="small muted" th:text="${it.quantity} + ' × ' + ${it.priceLabel()} + ' ' + ${it.unit}"></div></div>
+      <strong th:text="${it.lineTotalLabel()}"></strong>
+    </div>
+    <p class="total mt" th:text="#{common.total(${order.totalLabel()})}"></p>
+  </div>
+
+  <!-- What the seller can do next -->
+  <div class="panel">
+    <h2 th:text="#{seller.order.next}">Next step</h2>
+    <div class="row">
+      <form th:if="${order.status == 'placed'}" th:action="@{/seller/orders/{id}/accept(id=${order.id})}" method="post" class="inline">
+        <button class="btn" type="submit" th:text="'✓ ' + #{seller.order.accept}">✓ Accept order</button></form>
+      <form th:if="${order.status == 'accepted'}" th:action="@{/seller/orders/{id}/ready(id=${order.id})}" method="post" class="inline">
+        <button class="btn" type="submit" th:text="#{seller.order.ready}">Ready / sent</button></form>
+      <form th:if="${order.status == 'accepted' or order.status == 'ready'}" th:action="@{/seller/orders/{id}/complete(id=${order.id})}" method="post" class="inline">
+        <button class="btn secondary" type="submit" th:text="#{seller.order.complete}">Delivered / completed</button></form>
+      <form th:if="${!order.isPaid() and !order.isClosedUnsuccessfully()}" th:action="@{/seller/orders/{id}/paid(id=${order.id})}" method="post" class="inline">
+        <button class="btn secondary" type="submit" th:attr="data-confirm=#{seller.order.paidConfirm}" th:text="'₹ ' + #{seller.order.markPaid}">₹ Mark as paid</button></form>
+      <form th:if="${order.isPaid()}" th:action="@{/seller/orders/{id}/unpaid(id=${order.id})}" method="post" class="inline">
+        <button class="btn ghost small" type="submit" th:text="#{seller.order.undoPaid}">Undo paid</button></form>
+    </div>
+    <p class="small mt" th:if="${order.isPaid()}"><span class="badge good" th:text="#{order.paid}">Paid</span> <span th:text="${#temporals.format(order.paidAt, 'dd MMM HH:mm')}"></span></p>
+    <p class="small mt" th:if="${!order.isPaid() and order.customerMarkedPaidAt != null}"><span class="badge warn" th:text="#{seller.order.customerSaysPaid}">The customer says they paid</span> <span th:text="#{seller.order.checkUpi}">Check your UPI app, then mark it as paid.</span></p>
+
+    <form th:if="${order.status == 'placed' or order.status == 'accepted'}" th:action="@{/seller/orders/{id}/decline(id=${order.id})}" method="post" class="mt">
+      <label for="note" class="small" th:text="#{seller.order.declineWhy}">Cannot do this order? Tell the customer why (optional)</label>
+      <input id="note" name="note" type="text" maxlength="500" th:placeholder="#{seller.order.declineExample}">
+      <p class="hint" th:text="#{seller.order.declineTranslated}">Write in your language; the customer reads it in theirs.</p>
+      <p class="mt"><button class="btn danger small" type="submit" th:attr="data-confirm=#{seller.order.declineConfirm}" th:text="#{seller.order.decline}">Decline order</button></p>
+    </form>
+  </div>
+</main>
+<script src="/js/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="8" th:if="${waiting}">
+  <title th:text="#{seller.nav.messages}">Messages</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<header th:replace="~{fragments :: sellerBar}"></header>
+<main class="wrap narrow admin">
+  <th:block th:replace="~{fragments :: flash}"></th:block>
+  <div class="row between">
+    <h1 th:text="#{seller.messages.title}">Messages from customers</h1>
+    <nav class="row small">
+      <a href="/seller/messages" th:classappend="${show != 'done'} ? 'muted'" th:text="#{seller.messages.open}">To answer</a>
+      <a href="/seller/messages?show=done" th:classappend="${show == 'done'} ? 'muted'" th:text="#{seller.messages.done}">Answered</a>
+    </nav>
+  </div>
+  <p class="hint" th:text="#{seller.messages.hint}">Messages are shown in your language. Write your reply in your language too; the customer gets it in theirs.</p>
+  <p class="muted" th:if="${rows.isEmpty()}" th:text="#{common.nothing}">Nothing here.</p>
+
+  <article th:each="r : ${rows}" class="enquiry" th:id="'enquiry-' + ${r.enquiry().id}" th:classappend="${r.enquiry().urgency == 'high'} ? 'high'">
+    <div class="row between small">
+      <span><span th:text="#{seller.messages.from}">From</span> <strong th:text="${r.enquiry().customerName} ?: #{seller.messages.aCustomer}"></strong>
+        <span th:if="${r.enquiry().customerPhone}" th:text="' · ☎ ' + ${r.enquiry().customerPhone}"></span></span>
+      <span th:text="${#temporals.format(r.enquiry().createdAt, 'dd MMM HH:mm')}"></span>
+    </div>
+    <div class="row small mt">
+      <span class="badge warn" th:if="${r.enquiry().topic != null}" th:text="#{${'topic.' + r.enquiry().topic}}"></span>
+      <span class="badge crit" th:if="${r.enquiry().urgency == 'high'}" th:text="#{seller.messages.urgent}">urgent</span>
+      <span class="badge neutral" th:if="${r.enquiry().customerLanguage != null and r.enquiry().customerLanguage != lang}"
+            th:text="#{seller.messages.wroteIn(${siteLanguages[r.enquiry().customerLanguage]})}">Written in Tamil</span>
+    </div>
+    <div class="orig" th:text="${r.enquiry().messageIn(lang)}"></div>
+    <p class="small muted row" th:if="${r.enquiry().needsTranslationFor(lang)}"><span class="spinner"></span> <span th:text="#{seller.messages.translating}">Translating…</span></p>
+    <th:block th:replace="~{fragments :: original(${r.enquiry().message}, ${r.enquiry().isTranslatedFor(lang)})}"></th:block>
+
+    <th:block th:if="${r.enquiry().isOpen()}">
+      <p class="muted row" th:if="${r.draft() == null and r.enquiry().aiError == null}"><span class="spinner"></span> <span th:text="#{seller.messages.drafting}">The assistant is writing a reply…</span></p>
+      <ul class="checks small" th:if="${r.draft() != null and !r.draft().checkPoints.isEmpty()}">
+        <li><strong th:text="#{seller.messages.check}">Check before sending:</strong></li>
+        <li th:each="c : ${r.draft().checkPoints}" th:text="${c.asText()}"></li>
+      </ul>
+      <form th:if="${r.enquiry().hasEmail() or r.enquiry().customerUserId != null}" th:action="@{/seller/messages/{id}/send(id=${r.enquiry().id})}" method="post">
+        <label class="small" th:text="#{seller.messages.yourReply}">Your reply (change anything you like)</label>
+        <textarea name="reply" class="tall" maxlength="6000" th:text="${r.draft() != null} ? ${r.draft().body} : ''"></textarea>
+        <p class="hint" th:if="${r.enquiry().customerLanguage != null and r.enquiry().customerLanguage != lang}"
+           th:text="#{seller.messages.willTranslate(${siteLanguages[r.enquiry().customerLanguage]})}">It will be sent in Tamil.</p>
+        <p class="mt"><button class="btn" type="submit" th:attr="data-confirm=#{seller.messages.sendConfirm}" th:text="#{seller.messages.send}">Send reply</button></p>
+      </form>
+      <div class="alert info small" th:unless="${r.enquiry().hasEmail() or r.enquiry().customerUserId != null}" th:text="#{seller.messages.phoneOnly}">
+        Only a phone number was given. Call or WhatsApp them, then press "Done".
+      </div>
+      <div class="row mt">
+        <form th:action="@{/seller/messages/{id}/redraft(id=${r.enquiry().id})}" method="post" class="inline"><button class="btn small ghost" type="submit" th:text="'↻ ' + #{seller.messages.redraft}">↻ New draft</button></form>
+        <form th:action="@{/seller/messages/{id}/close(id=${r.enquiry().id})}" method="post" class="inline"><button class="btn small ghost" type="submit" th:text="#{seller.messages.close}">Done</button></form>
+      </div>
+    </th:block>
+    <th:block th:if="${r.sent() != null}">
+      <p class="small muted mt" th:text="#{seller.messages.youReplied}">You replied:</p>
+      <div class="reply-box" th:text="${r.sent().bodyIn(lang)}"></div>
+    </th:block>
+  </article>
+</main>
+<script src="/js/admin.js"></script>
+</body>
+</html>

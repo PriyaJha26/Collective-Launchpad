@@ -23,6 +23,10 @@ import com.collectivelaunchpad.domain.Repositories.ProductRepository;
 import com.collectivelaunchpad.domain.Repositories.ReplyRepository;
 import com.collectivelaunchpad.domain.Repositories.SellerRepository;
 import com.collectivelaunchpad.domain.Seller;
+import com.collectivelaunchpad.i18n.Languages;
+import com.collectivelaunchpad.i18n.Msg;
+import com.collectivelaunchpad.i18n.SellerLanguages;
+import com.collectivelaunchpad.i18n.TranslationService;
 import com.collectivelaunchpad.mail.MailService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,11 +41,17 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 public class EnquiryService {
 
     private static final Logger log = LoggerFactory.getLogger(EnquiryService.class);
-    private static final Pattern EMAIL = Pattern.compile("^[^@\\s]{1,64}@[^@\\s]+\\.[^@\\s]{2,}$");
-    private static final Pattern PHONE = Pattern.compile("^[0-9+()\\-\\s]{6,20}$");
+    public static final Pattern EMAIL = Pattern.compile("^[^@\\s]{1,64}@[^@\\s]+\\.[^@\\s]{2,}$");
+    public static final Pattern PHONE = Pattern.compile("^[0-9+()\\-\\s]{6,20}$");
     public static final Set<String> OPEN = Set.of(EnquiryStatus.NEW, EnquiryStatus.DRAFTED);
 
-    public record ContactForm(String name, String email, String phone, String message) {}
+    public record ContactForm(String name, String email, String phone, String message, String topic) {
+        public ContactForm(String name, String email, String phone, String message) {
+            this(name, email, phone, message, null);
+        }
+    }
+
+    public static final Set<String> TOPICS = Set.of("question", "discount", "custom", "order");
 
     public static class InvalidEnquiry extends RuntimeException {
         public InvalidEnquiry(String message) {
@@ -58,10 +68,14 @@ public class EnquiryService {
     private final MailService mail;
     private final ObjectMapper mapper;
     private final ExecutorService background;
+    private final TranslationService translator;
+    private final SellerLanguages sellerLanguages;
+    private final Msg msg;
 
     public EnquiryService(EnquiryRepository enquiries, ReplyRepository replies, SellerRepository sellers,
                           ProductRepository products, GroupRepository groups, AgentClient agent, MailService mail,
-                          ObjectMapper mapper, ExecutorService backgroundExecutor) {
+                          ObjectMapper mapper, ExecutorService backgroundExecutor, TranslationService translator,
+                          SellerLanguages sellerLanguages, Msg msg) {
         this.enquiries = enquiries;
         this.replies = replies;
         this.sellers = sellers;
@@ -71,33 +85,48 @@ public class EnquiryService {
         this.mail = mail;
         this.mapper = mapper;
         this.background = backgroundExecutor;
+        this.translator = translator;
+        this.sellerLanguages = sellerLanguages;
+        this.msg = msg;
+    }
+
+    private String sellerLanguage(Seller s) {
+        return sellerLanguages.of(s);
     }
 
     // ------------------------------------------------------------------ intake
 
     public Enquiry receive(Seller seller, ContactForm form) {
+        return receive(seller, form, null);
+    }
+
+    /** customerUserId is set when the customer is logged in: replies then also show in their account. */
+    public Enquiry receive(Seller seller, ContactForm form, Long customerUserId) {
         String message = clip(form.message(), 4000);
         String name = clip(form.name(), 100);
         String email = clip(form.email(), 200);
         String phone = clip(form.phone(), 20);
         if (message == null) {
-            throw new InvalidEnquiry("Please write a message.");
+            throw new InvalidEnquiry(msg.get("err.writeMessage"));
         }
-        if (email == null && phone == null) {
-            throw new InvalidEnquiry("Please give an email address or phone number so the seller can reply.");
+        if (email == null && phone == null && customerUserId == null) {
+            throw new InvalidEnquiry(msg.get("err.contactNeeded"));
         }
         if (email != null && !EMAIL.matcher(email).matches()) {
-            throw new InvalidEnquiry("That email address does not look right.");
+            throw new InvalidEnquiry(msg.get("err.email"));
         }
         if (phone != null && !PHONE.matcher(phone).matches()) {
-            throw new InvalidEnquiry("That phone number does not look right.");
+            throw new InvalidEnquiry(msg.get("err.phone"));
         }
         Enquiry e = new Enquiry();
+        e.customerLanguage = Msg.lang();
         e.sellerId = seller.id;
         e.customerName = name;
         e.customerEmail = email;
         e.customerPhone = phone;
         e.message = message;
+        e.topic = form.topic() != null && TOPICS.contains(form.topic()) ? form.topic() : null;
+        e.customerUserId = customerUserId;
         enquiries.save(e);
         long id = e.id;
         background.submit(() -> {
@@ -146,6 +175,10 @@ public class EnquiryService {
                 log.warn("Classifying enquiry {} failed: {}", enquiryId, ex.getMessage());
             }
         }
+        if (e.translations == null) {
+            Seller s = sellers.findById(e.sellerId).orElseThrow();
+            translateMessage(e, java.util.List.of(sellerLanguage(s), "en"));
+        }
         try {
             JsonNode d = agent.draftReply(draftRequest(e));
             Reply r = new Reply();
@@ -164,11 +197,37 @@ public class EnquiryService {
         enquiries.save(e);
     }
 
+    /** Adds the message in the given languages (skipping the one it was written in). Never throws. */
+    private void translateMessage(Enquiry e, java.util.List<String> targets) {
+        var wanted = targets.stream().filter(t -> e.needsTranslationFor(t)).distinct().toList();
+        if (wanted.isEmpty()) {
+            return;
+        }
+        try {
+            var result = translator.translate(java.util.Map.of("text", e.message), wanted);
+            Enquiry fresh = enquiries.findById(e.id).orElseThrow();
+            fresh.translations = translator.flatten(result, fresh.translations);
+            enquiries.save(fresh);
+            e.translations = fresh.translations;
+        } catch (AgentClient.AgentException ex) {
+            log.warn("Translating enquiry {} failed: {}", e.id, ex.getMessage());
+        }
+    }
+
+    /** The reader's language has no translation yet (e.g. the seller switched language): add it in the background. */
+    public void translateInBackground(Enquiry e, String lang) {
+        if (e.needsTranslationFor(lang)) {
+            long id = e.id;
+            background.submit(() -> enquiries.findById(id).ifPresent(fresh -> translateMessage(fresh, java.util.List.of(lang))));
+        }
+    }
+
     private ObjectNode draftRequest(Enquiry e) {
         Seller s = sellers.findById(e.sellerId).orElseThrow();
         Group g = groups.findFirstByOrderByIdAsc().orElseThrow();
         ObjectNode req = mapper.createObjectNode();
         req.put("group_name", g.name);
+        req.put("reply_language", sellerLanguage(s));
         ObjectNode seller = req.putObject("seller");
         seller.put("name", s.name);
         seller.put("shop_name", s.shopName == null ? s.name : s.shopName);
@@ -193,6 +252,9 @@ public class EnquiryService {
         if (e.category != null) {
             enquiry.put("category", e.category);
         }
+        if (e.topic != null) {
+            enquiry.put("topic", e.topic);
+        }
         return req;
     }
 
@@ -214,17 +276,30 @@ public class EnquiryService {
     public Reply approveAndSend(long enquiryId, String body, long adminId) {
         Enquiry e = find(enquiryId);
         if (!e.isOpen()) {
-            throw new InvalidEnquiry("This enquiry is already answered or closed.");
+            throw new InvalidEnquiry(msg.get("err.enquiryClosed"));
         }
-        if (!e.hasEmail()) {
-            throw new InvalidEnquiry("This customer left only a phone number. Call or WhatsApp them, then close the enquiry.");
+        if (!e.hasEmail() && e.customerUserId == null) {
+            throw new InvalidEnquiry(msg.get("err.phoneOnly"));
         }
         String text = body == null ? "" : body.strip();
         if (text.isEmpty()) {
-            throw new InvalidEnquiry("The reply is empty.");
+            throw new InvalidEnquiry(msg.get("err.replyEmpty"));
         }
         if (text.length() > 6000) {
-            throw new InvalidEnquiry("The reply is too long.");
+            throw new InvalidEnquiry(msg.get("err.replyLong"));
+        }
+        String writtenIn = Msg.lang();
+        String customerLang = Languages.orEnglish(e.customerLanguage);
+        com.fasterxml.jackson.databind.JsonNode translated = null;
+        String forCustomer = text;
+        if (!customerLang.equals(writtenIn)) {
+            try {
+                translated = translator.flatten(translator.translate(java.util.Map.of("text", text), java.util.List.of(customerLang)), null);
+                forCustomer = translated.path(customerLang).asText(text);
+            } catch (AgentClient.AgentException ex) {
+                log.warn("Translating the reply to enquiry {} failed: {}", enquiryId, ex.getMessage());
+                throw new InvalidEnquiry(msg.get("err.replyTranslate"));
+            }
         }
         Reply r = replies.findFirstByEnquiryIdAndStatusInOrderByIdDesc(e.id, Set.of(ReplyStatus.DRAFT, ReplyStatus.APPROVED))
                 .orElseGet(() -> {
@@ -234,16 +309,21 @@ public class EnquiryService {
                     return fresh;
                 });
         r.body = text;
+        r.language = writtenIn;
+        r.translations = translated;
         r.status = ReplyStatus.APPROVED;
         r.approvedBy = adminId;
         replies.save(r);
 
         Seller s = sellers.findById(e.sellerId).orElseThrow();
-        MailService.Result result = mail.send(e.customerEmail, mail.from(), "Re: your message to " + s.shopName, text);
+        // Logged-in customers read the reply in their account; email is sent too when they gave one.
+        MailService.Result result = e.hasEmail()
+                ? mail.send(e.customerEmail, mail.from(), msg.in(customerLang, "email.replySubject", s.shopNameIn(customerLang)), forCustomer)
+                : new MailService.Result(true, "IN_APP");
         if (!result.ok()) {
             r.sendError = result.detail();
             replies.save(r);
-            throw new InvalidEnquiry("The email could not be sent: " + result.detail());
+            throw new InvalidEnquiry(msg.get("err.emailFailed", result.detail()));
         }
         r.status = ReplyStatus.SENT;
         r.sentAt = OffsetDateTime.now();
@@ -273,7 +353,24 @@ public class EnquiryService {
     }
 
     public Enquiry find(long id) {
-        return enquiries.findById(id).orElseThrow(() -> new InvalidEnquiry("Enquiry not found."));
+        return enquiries.findById(id).orElseThrow(() -> new InvalidEnquiry(msg.get("err.enquiryNotFound")));
+    }
+
+    public List<Enquiry> forSeller(long sellerId) {
+        return enquiries.findBySellerIdOrderByCreatedAtDesc(sellerId);
+    }
+
+    public List<Enquiry> forCustomer(long customerUserId) {
+        return enquiries.findByCustomerUserIdOrderByCreatedAtDesc(customerUserId);
+    }
+
+    /** Throws unless the enquiry belongs to this seller. */
+    public Enquiry findForSeller(long enquiryId, long sellerId) {
+        Enquiry e = find(enquiryId);
+        if (!java.util.Objects.equals(e.sellerId, sellerId)) {
+            throw new InvalidEnquiry(msg.get("err.enquiryNotFound"));
+        }
+        return e;
     }
 
     public List<Enquiry> open() {

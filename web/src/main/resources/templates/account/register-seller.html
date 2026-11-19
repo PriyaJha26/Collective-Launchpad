@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<head th:replace="~{fragments :: head(#{reg.title} + ' · ' + ${group.name})}"></head>
+<body>
+<header th:replace="~{fragments :: siteBar}"></header>
+<main class="wrap narrow">
+  <nav th:replace="~{fragments :: langPicker}"></nav>
+  <h1 th:text="#{reg.title}">Register your shop</h1>
+  <p th:text="#{reg.intro}">Intro</p>
+  <div class="alert err" th:if="${error}" th:text="${error}"></div>
+  <div class="alert info" th:if="${me != null}" th:text="#{reg.loggedIn}"></div>
+
+  <form th:action="@{/register/seller}" method="post" class="panel">
+    <th:block th:if="${me == null}">
+      <label for="name" th:text="#{reg.name}">Your name</label>
+      <input id="name" name="name" type="text" maxlength="80" required th:value="${form?.name()}">
+      <label for="phone" th:text="#{reg.mobile}">Mobile</label>
+      <input id="phone" name="phone" type="tel" maxlength="20" required placeholder="98xxxxxxxx" th:value="${form?.phone()}">
+      <label for="password" th:text="#{reg.password}">Password</label>
+      <input id="password" name="password" type="password" minlength="8" autocomplete="new-password" required>
+    </th:block>
+
+    <label for="language" th:text="#{f.language}">Language</label>
+    <select id="language" name="language">
+      <option th:each="l : ${languages}" th:value="${l.key}" th:text="${l.value}"
+              th:selected="${form != null ? form.language() == l.key : l.key == lang}">Hindi</option>
+    </select>
+
+    <label for="craft" th:text="#{f.craft}">What do you make?</label>
+    <input id="craft" name="craft" type="text" maxlength="300" required th:placeholder="#{f.craftExample}" th:value="${form?.craft()}">
+
+    <div class="grid2">
+      <div><label for="shopName" th:text="#{reg.shopName}">Shop name</label><input id="shopName" name="shopName" type="text" maxlength="80" th:value="${form?.shopName()}"></div>
+      <div><label for="location" th:text="#{f.location}">Location</label><input id="location" name="location" type="text" maxlength="120" th:value="${form?.location()}"></div>
+    </div>
+    <label for="whatsapp" th:text="#{reg.whatsapp}">WhatsApp</label>
+    <input id="whatsapp" name="whatsapp" type="tel" maxlength="20" th:value="${form?.whatsapp()}">
+
+    <p class="mt"><button class="btn big" type="submit" th:text="#{reg.submit}">Create my shop</button></p>
+  </form>
+  <p class="small" th:if="${me == null}"><span th:text="#{reg.have}"></span> <a href="/login" th:text="#{reg.login}">Log in</a></p>
+  <p class="small"><a href="/join" th:text="#{reg.help}">Need help?</a></p>
+</main>
+</body>
+</html>

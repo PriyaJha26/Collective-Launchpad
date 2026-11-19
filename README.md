@@ -1,6 +1,6 @@
 # Collective Launchpad
 
-One domain shared by many tiny sellers. A self-help group or cooperative owns one domain, and each member gets a shop page on her own subdomain (`meena.ourvillagecrafts.in`). A literate group member, the admin, onboards sellers and answers customers on their behalf, with Claude doing the reading, structuring and drafting.
+One domain shared by many tiny sellers. A self-help group or cooperative owns one domain, and each member gets a shop page on their own subdomain (`meena.ourvillagecrafts.in`). A literate group member, the admin, onboards sellers and answers customers on their behalf, with Claude doing the reading, structuring and drafting.
 
 ```
                  Internet ── 80/443 ──▶ Caddy (HTTPS for <domain> and *.<domain>, on-demand certificates)
@@ -20,12 +20,25 @@ One domain shared by many tiny sellers. A self-help group or cooperative owns on
 
 Only Java touches the database, and only Python talks to Claude. The agent is stateless: Java stores each onboarding conversation and sends it back every turn.
 
-## What it does
+## Who uses it
 
-1. **Add a seller.** The admin uploads photos of products and the price list (which may be handwritten) and types or dictates notes in the seller's language.
-2. **The onboarding agent** (Claude Sonnet 5.5) reads them and fills in the draft through tools: `set_shop_profile`, `add_product`, `update_product`, `propose_shop_address`, `ask_seller` and `submit_for_review`. When something is missing it asks one question; the admin's answer starts the next turn. Values it is unsure of are flagged.
-3. **Review and publish.** The admin sees flagged values highlighted, corrects them, previews and publishes. Publishing is always a human action. The web service then requests the shop's URL itself, which makes Caddy fetch the certificate and confirms the page is live.
-4. **Enquiries.** Every shop has a contact form. Each enquiry is saved and a copy is emailed to the group mailbox. Claude Haiku 5.5 classifies it, and Claude Sonnet 5.5 drafts a reply using only catalogue prices, with points the admin should check. The admin edits, approves or discards the draft, and an approved reply goes out from the group mailbox.
+| Role | Where | Can do |
+|---|---|---|
+| **Superadmin** (runs the site) | `/admin` | See everything. Add sellers for people who can't use a phone well (Claude builds the shop from photos), give them a login, approve self-registered shops, publish or hide shops, see all orders and each shop's earnings, manage users and reset passwords, answer join requests (shown with an English translation) and messages. |
+| **Seller** (one shop) | `/seller` | Add, edit or remove products (price, stock, description, photo). See and answer customer messages (Claude drafts the reply). Accept, decline and complete orders, confirm payment, see earnings. Set the UPI ID customers pay to. Set up the shop with the Claude assistant, which asks its questions in the seller's language. |
+| **Customer** | public site, `/account` | Browse every shop and product without logging in. Ask a seller a question, ask for a discount or request a custom order. Log in to order, pay the seller (cash on delivery or UPI) and see orders and replies. Any customer can also open a shop. |
+
+Everyone logs in with a **mobile number and password**; the superadmin can also use an email. Sellers can **register themselves** (`/register/seller`); their shop stays hidden until the superadmin approves it. People who need help can use the **"Sell with us" intake form** (`/join`). The intake and seller registration pages are available in 12 Indian languages; join requests in another language are translated into English for the superadmin (Claude Haiku 5.5).
+
+**Payments go straight to the seller.** There is no payment gateway: at checkout the customer picks cash on delivery / pickup, or UPI to the seller's own UPI ID (a `upi://` link opens their UPI app with the amount filled in). The seller marks the order as paid when the money arrives; only paid orders count as earnings.
+
+**Ordering happens on the main domain.** Shop pages stay on their subdomains (`meena.<domain>`), but "Buy", cart, checkout and accounts are on the main domain, so one login works everywhere and the session cookie never reaches shop subdomains.
+
+## How the AI parts work
+
+1. **Onboarding agent** (Claude Sonnet 5.5): reads product photos, handwritten price lists and dictated notes, and fills in the draft shop through tools (`set_shop_profile`, `add_product`, `update_product`, `propose_shop_address`, `ask_seller`, `submit_for_review`). It flags values it is unsure of and asks one question when something essential is missing. It cannot publish.
+2. **Enquiries:** Claude Haiku 5.5 classifies each message; Claude Sonnet 5.5 drafts a reply that quotes only catalogue prices, plus points the seller should check. Nothing is sent until the seller (or superadmin) approves it. Logged-in customers read replies in their account; others get them by email.
+3. **Translation:** join requests written in a local language get an English version for the superadmin.
 
 ## Run it locally
 
@@ -35,8 +48,9 @@ Needs Java 21+, Maven, Python 3.11+ and PostgreSQL running locally (14+; product
 ADMIN_PASSWORD=choose-a-password ./run.sh
 ```
 
-- Group site: http://localhost:8080/
-- Admin: http://localhost:8080/admin, logged in as `admin@localhost` with the password above
+- Group site and shopping: http://localhost:8080/
+- Superadmin: http://localhost:8080/admin, logged in as `admin@localhost` with the password above
+- Seller dashboard: http://localhost:8080/seller (register at `/register/seller`, or the superadmin creates a login)
 - Shops: http://sample.localhost:8080/ (browsers resolve `*.localhost` themselves)
 
 `run.sh` creates the `launchpad` database if it is missing, a Python virtualenv for the agent, and a sample shop. Without a Claude key, the agent runs in **mock mode**. Mock answers are scripted and marked `[MOCK]`, but they go through the real tool loop and the real Java endpoints. To use Claude, put `ANTHROPIC_API_KEY=...` in `.env.local`. Email is simulated until SMTP is configured; simulated emails are listed on the dashboard.
@@ -62,15 +76,16 @@ cd web && TEST_DB_URL=jdbc:postgresql://localhost:5432/launchpad_test mvn test  
 cd agent && .venv/bin/python -m evals.run_evals  # saved real cases against Claude (costs a few cents)
 ```
 
-The web tests cover hostname routing, the certificate check, escaping, CSRF, login, the contact form (validation, honeypot, rate limit), upload checks, the internal token, and the rule that the agent can only change drafts.
+The web tests cover hostname routing, the certificate check, escaping, CSRF, login and the three roles (each reaches only its own pages and data), registration, seller self-signup and approval, product management, cart and checkout (stock is never oversold and comes back when an order is declined or cancelled), payment confirmation and earnings, in-app replies, the translated intake pages, login throttling, the contact forms, upload checks, the internal token, and the rule that the agent can only change drafts.
 
 ## Security notes
 
 - **Secrets** live only in `.env`, which is git-ignored. `docker-compose.yml` gives each container only its own variables.
 - **Service-to-service:** a shared token in `X-Internal-Token`, in both directions.
 - **Agent scope:** the seller id is attached by the server, never by Claude. The internal API rejects changes to published shops. The agent has no tool to publish, send email or spend money.
-- **Admin:** Spring Security form login, bcrypt, server-side sessions, and CSRF tokens on every admin form. The session cookie is `Secure`, `HttpOnly`, `SameSite=Lax` and host-only, so shop subdomains never receive it.
-- **Public contact form:** it has no session to protect, so instead of a CSRF token it is guarded by validation, length limits, a honeypot field and a per-IP rate limit.
+- **Logins:** Spring Security form login with three roles, bcrypt, server-side sessions, CSRF tokens on every logged-in form, and a lockout after 10 wrong passwords from one IP in 15 minutes. The session cookie is `Secure`, `HttpOnly`, `SameSite=Lax` and host-only, so shop subdomains never receive it.
+- **Data scoping:** a seller only ever reads or changes their own shop, products, orders and messages; a customer only their own orders and messages. Anything else shows "not found".
+- **Public forms** (shop contact form, "Contact us", "Sell with us"): no login to protect, so instead of a CSRF token they are guarded by validation, length limits, a honeypot field and a per-IP rate limit.
 - **Uploads:** images only, checked from the file's first bytes, 10 MB each, stored under random names.
 - **Headers:** Content Security Policy with no inline scripts or styles, HSTS including subdomains, and `X-Frame-Options: DENY`.
 

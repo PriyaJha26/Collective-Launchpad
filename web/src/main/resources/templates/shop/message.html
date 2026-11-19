@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<head th:replace="~{fragments :: head(#{message.title(${seller.shopNameIn(lang)})})}"></head>
+<body>
+<header th:replace="~{fragments :: siteBar}"></header>
+<main class="wrap narrow">
+  <th:block th:replace="~{fragments :: flash}"></th:block>
+  <h1 class="mt" th:text="#{message.title(${seller.shopNameIn(lang)})}">Message</h1>
+  <div class="alert ok" th:if="${param.sent}" th:text="#{shop.message.sent}">Message sent.</div>
+  <p class="muted" th:if="${product != null}" th:text="#{shop.message.about(${product.nameIn(lang)})} + ' (' + (${product.pricePaise == null} ? #{product.askPrice} : ${product.priceLabel()}) + ')'"></p>
+
+  <form th:action="@{/shops/{s}/message(s=${seller.slug})}" method="post" class="panel">
+    <input type="hidden" name="product" th:if="${product != null}" th:value="${product.id}">
+    <label th:text="#{message.what}">What is it about?</label>
+    <label class="radio"><input type="radio" name="topic" value="question" th:checked="${topic == 'question'}"> <span th:text="#{message.topic.question}">A question</span></label>
+    <label class="radio"><input type="radio" name="topic" value="discount" th:checked="${topic == 'discount'}"> <span th:text="#{message.topic.discount}">Ask for a discount</span></label>
+    <label class="radio"><input type="radio" name="topic" value="custom" th:checked="${topic == 'custom'}"> <span th:text="#{message.topic.custom}">Request something made for me</span></label>
+    <label class="radio"><input type="radio" name="topic" value="order" th:checked="${topic == 'order'}"> <span th:text="#{message.topic.order}">About an order I placed</span></label>
+
+    <th:block th:if="${me == null}">
+      <div class="grid2">
+        <div><label for="name" th:text="#{common.yourName}">Your name</label><input id="name" name="name" type="text" maxlength="100" th:value="${form != null ? form[0] : ''}"></div>
+        <div><label for="phone" th:text="#{common.phone}">Phone</label><input id="phone" name="phone" type="tel" maxlength="20" th:value="${form != null ? form[2] : ''}"></div>
+      </div>
+      <label for="email" th:text="#{common.email}">Email</label>
+      <input id="email" name="email" type="email" maxlength="200" th:value="${form != null ? form[1] : ''}">
+      <p class="hint"><span th:text="#{message.contactHint}">Give a phone number or email so the seller can reply, or</span> <a href="/login" th:text="#{message.loginLink}">log in to see replies here</a>.</p>
+    </th:block>
+    <p class="hint" th:if="${me != null}"><span th:text="#{message.replyWhere}">The reply will appear under</span> <a href="/account/messages" th:text="#{account.messages}">My messages</a>.</p>
+
+    <label for="message" th:text="#{common.message}">Message</label>
+    <textarea id="message" name="message" maxlength="4000" required th:text="${form != null ? form[3] : ''}"></textarea>
+    <p class="hint" th:text="#{common.anyLanguage}">Write in any language.</p>
+    <p class="mt"><button class="btn" type="submit" th:text="#{common.send}">Send</button></p>
+  </form>
+  <p class="small"><a th:href="${urls.shopUrl(seller.slug)}" th:text="'← ' + #{message.back}">← Back to the shop</a></p>
+</main>
+</body>
+</html>

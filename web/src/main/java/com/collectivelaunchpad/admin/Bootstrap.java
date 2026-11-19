@@ -12,11 +12,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.collectivelaunchpad.config.AppProperties;
-import com.collectivelaunchpad.domain.Admin;
+import com.collectivelaunchpad.domain.Account;
 import com.collectivelaunchpad.domain.Entities.SellerStatus;
 import com.collectivelaunchpad.domain.Group;
 import com.collectivelaunchpad.domain.Product;
-import com.collectivelaunchpad.domain.Repositories.AdminRepository;
+import com.collectivelaunchpad.domain.Repositories.AccountRepository;
 import com.collectivelaunchpad.domain.Repositories.GroupRepository;
 import com.collectivelaunchpad.domain.Repositories.ProductRepository;
 import com.collectivelaunchpad.domain.Repositories.SellerRepository;
@@ -29,16 +29,16 @@ public class Bootstrap implements ApplicationRunner {
     private static final Logger log = LoggerFactory.getLogger(Bootstrap.class);
 
     private final GroupRepository groups;
-    private final AdminRepository admins;
+    private final AccountRepository accounts;
     private final SellerRepository sellers;
     private final ProductRepository products;
     private final PasswordEncoder encoder;
     private final AppProperties props;
 
-    public Bootstrap(GroupRepository groups, AdminRepository admins, SellerRepository sellers, ProductRepository products,
+    public Bootstrap(GroupRepository groups, AccountRepository accounts, SellerRepository sellers, ProductRepository products,
                      PasswordEncoder encoder, AppProperties props) {
         this.groups = groups;
-        this.admins = admins;
+        this.accounts = accounts;
         this.sellers = sellers;
         this.products = products;
         this.encoder = encoder;
@@ -60,22 +60,24 @@ public class Bootstrap implements ApplicationRunner {
             return groups.save(g);
         });
 
-        if (admins.count() == 0) {
+        if (accounts.findAll().stream().noneMatch(Account::isSuperadmin)) {
             String email = seed.adminEmail();
             String password = seed.adminPassword();
             if (password == null || password.isBlank()) {
                 password = randomPassword();
-                log.warn("ADMIN_PASSWORD is not set. Created admin {} with this one-time generated password: {}"
+                log.warn("ADMIN_PASSWORD is not set. Created superadmin {} with this one-time generated password: {}"
                         + "  (set ADMIN_PASSWORD before first start to choose your own)", email, password);
             } else if (password.length() < 10) {
                 throw new IllegalStateException("ADMIN_PASSWORD must be at least 10 characters.");
             }
-            Admin a = new Admin();
-            a.groupId = group.id;
+            Account a = new Account();
+            a.role = Account.SUPERADMIN;
+            a.name = "Superadmin";
             a.email = email.strip().toLowerCase();
+            a.phone = com.collectivelaunchpad.account.AccountService.normalizePhone(seed.adminPhone()).orElse(null);
             a.passwordHash = encoder.encode(password);
-            admins.save(a);
-            log.info("Created admin {}", a.email);
+            accounts.save(a);
+            log.info("Created superadmin {}", a.email);
         }
 
         if (seed.sampleShop() && sellers.count() == 0) {

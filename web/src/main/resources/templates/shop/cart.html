@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<head th:replace="~{fragments :: head(#{nav.cart} + ' · ' + ${group.name})}"></head>
+<body>
+<header th:replace="~{fragments :: siteBar}"></header>
+<main class="wrap narrow">
+  <th:block th:replace="~{fragments :: flash}"></th:block>
+  <h1 class="mt" th:text="#{cart.title}">Your cart</h1>
+  <p class="muted" th:if="${carts.isEmpty()}"><span th:text="#{cart.empty}">Your cart is empty.</span> <a href="/products" th:text="#{common.browseProducts}">Browse products</a>.</p>
+  <p class="hint" th:unless="${carts.isEmpty()}" th:text="#{cart.perShop}">Each shop delivers and takes payment on its own, so you check out once per shop.</p>
+
+  <section class="panel cart-shop" th:each="c : ${carts}">
+    <h2 th:text="${c.seller().shopNameIn(lang)}">Shop</h2>
+    <div class="line" th:each="l : ${c.lines()}">
+      <img th:if="${l.product().imageUrl() != null}" th:src="${l.product().imageUrl()}" alt="">
+      <div th:unless="${l.product().imageUrl() != null}" class="noimg"></div>
+      <div>
+        <a th:href="@{/p/{id}(id=${l.product().id})}" th:text="${l.product().nameIn(lang)}">Item</a>
+        <div class="small muted"><span th:replace="~{fragments :: price(${l.product()})}"></span> <span th:text="${l.product().unitIn(lang)}"></span></div>
+        <div class="small" th:if="${!l.product().canBeOrdered()}"><span class="badge crit" th:text="#{cart.notAvailable}">Not available now</span></div>
+        <div class="small" th:if="${l.product().stock != null and l.product().stock < l.quantity()}"><span class="badge warn" th:text="#{product.onlyLeft(${l.product().stock})}"></span></div>
+        <form th:action="@{/cart/update}" method="post" class="row mt">
+          <input type="hidden" name="productId" th:value="${l.product().id}">
+          <input class="qty" type="number" name="quantity" min="0" max="100" th:value="${l.quantity()}" th:attr="aria-label=#{product.quantity}">
+          <button class="btn small ghost" type="submit" th:text="#{cart.update}">Update</button>
+        </form>
+      </div>
+      <div class="center">
+        <strong th:text="${l.totalLabel()}"></strong>
+        <form th:action="@{/cart/remove}" method="post"><input type="hidden" name="productId" th:value="${l.product().id}"><button class="linklike small" type="submit" th:text="#{cart.remove}">Remove</button></form>
+      </div>
+    </div>
+    <div class="row between mt">
+      <span class="total" th:text="#{common.total(${c.totalLabel()})}"></span>
+      <a th:if="${c.canCheckout()}" class="btn" th:href="@{/checkout/{id}(id=${c.seller().id})}" th:text="#{cart.checkout}">Checkout</a>
+      <span th:unless="${c.canCheckout()}" class="small muted" th:text="#{cart.fixItems}">Fix the items above to check out.</span>
+    </div>
+  </section>
+  <p class="hint" th:if="${me == null and !carts.isEmpty()}" th:text="#{cart.loginHint}">You will be asked to log in or create an account at checkout.</p>
+</main>
+</body>
+</html>

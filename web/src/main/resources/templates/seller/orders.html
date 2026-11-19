@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<head th:replace="~{fragments :: head(#{seller.nav.orders} + ' · ' + ${group.name})}"></head>
+<body>
+<header th:replace="~{fragments :: sellerBar}"></header>
+<main class="wrap narrow admin">
+  <th:block th:replace="~{fragments :: flash}"></th:block>
+  <h1 th:text="#{seller.orders.title}">Orders and earnings</h1>
+  <div class="tiles">
+    <div class="tile"><div class="label" th:text="#{seller.orders.earned}">Earned (paid orders)</div><div class="value" th:text="${earnings.paidTotalLabel()}">₹0</div></div>
+    <div class="tile"><div class="label" th:text="#{seller.orders.month}">This month</div><div class="value" th:text="${earnings.paidThisMonthLabel()}">₹0</div></div>
+    <div class="tile"><div class="label" th:text="#{seller.orders.awaiting}">Accepted, not paid yet</div><div class="value" th:text="${earnings.awaitingPaymentLabel()}">₹0</div></div>
+    <div class="tile"><div class="label" th:text="#{seller.orders.all}">All orders</div><div class="value" th:text="${earnings.orderCount()}">0</div></div>
+  </div>
+  <p class="hint" th:text="#{seller.orders.hint}">Customers pay you directly (cash or UPI).</p>
+
+  <p class="muted" th:if="${orders.isEmpty()}" th:text="#{account.noOrders}">No orders yet.</p>
+  <a class="order-card" th:each="o : ${orders}" th:href="@{/seller/orders/{id}(id=${o.id})}">
+    <div class="row between">
+      <strong th:text="'#' + ${o.id} + ' · ' + ${o.customerName}"></strong>
+      <span th:text="${o.totalLabel()}"></span>
+    </div>
+    <div class="small muted" th:text="${#temporals.format(o.createdAt, 'dd MMM HH:mm')} + ' · ' + #{${'order.status.' + o.status}}"></div>
+    <div class="small" th:if="${items[o.id] != null}">
+      <span th:each="it, st : ${items[o.id]}" th:text="${it.quantity} + ' × ' + ${it.name} + (${st.last} ? '' : ', ')"></span>
+    </div>
+    <span th:if="${o.status == 'placed'}" class="badge warn" th:text="#{seller.orders.new}">New: accept or decline</span>
+    <span th:if="${o.isPaid()}" class="badge good" th:text="#{order.paid}">Paid</span>
+    <span th:if="${!o.isPaid() and o.customerMarkedPaidAt != null}" class="badge warn" th:text="#{seller.orders.customerPaid}">Customer says paid</span>
+  </a>
+</main>
+</body>
+</html>

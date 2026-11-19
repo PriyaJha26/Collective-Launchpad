@@ -7,21 +7,110 @@
   <link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
+
+<!-- Public site (customers). Links are absolute so they also work from shop subdomains. -->
+<header class="site-bar" th:fragment="siteBar">
+  <th:block th:replace="~{fragments :: langBanner}"></th:block>
+  <div class="wrap">
+    <a class="brand" th:href="${urls.mainUrl()} + '/'" th:text="${group.name}">Group</a>
+    <nav>
+      <a th:href="${urls.mainUrl()} + '/products'" th:text="#{nav.products}">Products</a>
+      <a th:href="${urls.mainUrl()} + '/cart'"><span th:text="#{nav.cart}">Cart</span><span class="count" th:if="${cartCount > 0}" th:text="${cartCount}"></span></a>
+      <th:block th:if="${me == null}">
+        <a th:href="${urls.mainUrl()} + '/login'" th:text="#{nav.login}">Log in</a>
+        <a th:href="${urls.mainUrl()} + '/join'" th:text="#{nav.sell}">Sell with us</a>
+      </th:block>
+      <th:block th:if="${me != null}">
+        <a th:if="${me.isSuperadmin()}" href="/admin" th:text="#{nav.admin}">Admin</a>
+        <a th:if="${me.isSeller()}" href="/seller" th:text="#{nav.myShop}">My shop</a>
+        <a href="/account" th:text="#{nav.account}">My account</a>
+        <form th:action="@{/logout}" method="post" class="inline"><button class="linklike" type="submit" th:text="#{nav.logout}">Log out</button></form>
+      </th:block>
+      <th:block th:replace="~{fragments :: langMenu}"></th:block>
+    </nav>
+  </div>
+</header>
+
+<!-- Superadmin (always English) -->
 <header class="admin-bar" th:fragment="adminBar">
   <div class="wrap">
-    <a class="brand" href="/admin" th:text="'◆ ' + ${group.name}">Group</a>
+    <a class="brand" href="/admin" th:text="'◆ ' + ${group.name} + ' · Superadmin'">Group</a>
     <nav>
       <a href="/admin">Dashboard</a>
       <a href="/admin/sellers/new">Add a seller</a>
+      <a href="/admin/orders">Orders</a>
       <a href="/admin/inbox">Inbox</a>
+      <a href="/admin/requests">Requests</a>
+      <a href="/admin/users">Users</a>
       <a href="/" target="_blank" rel="noopener">Public site ↗</a>
       <form th:action="@{/logout}" method="post" class="inline"><button class="linklike" type="submit">Log out</button></form>
     </nav>
   </div>
 </header>
+
+<!-- Seller -->
+<header class="admin-bar seller-bar" th:fragment="sellerBar">
+  <th:block th:replace="~{fragments :: langBanner}"></th:block>
+  <div class="wrap">
+    <a class="brand" href="/seller" th:text="'◆ ' + ${seller.shopName ?: seller.name}">Shop</a>
+    <nav>
+      <a href="/seller" th:text="#{seller.nav.home}">Home</a>
+      <a href="/seller/products" th:text="#{seller.nav.products}">Products</a>
+      <a href="/seller/orders" th:text="#{seller.nav.orders}">Orders</a>
+      <a href="/seller/messages" th:text="#{seller.nav.messages}">Messages</a>
+      <a href="/seller/shop" th:text="#{seller.nav.settings}">Shop settings</a>
+      <a href="/" target="_blank" rel="noopener" th:text="#{seller.nav.website}">Website ↗</a>
+      <form th:action="@{/logout}" method="post" class="inline"><button class="linklike" type="submit" th:text="#{nav.logout}">Log out</button></form>
+      <th:block th:replace="~{fragments :: langMenu}"></th:block>
+    </nav>
+  </div>
+</header>
+
+<!-- Language switcher in the top bar: a plain <details> menu, no script needed. -->
+<details class="lang-menu" th:fragment="langMenu">
+  <summary th:attr="aria-label=#{lang.label}"><span aria-hidden="true">🌐</span> <span th:text="${siteLanguages[lang]}">English</span></summary>
+  <div class="lang-options">
+    <a th:each="l : ${siteLanguages}" th:href="${langLinks.href(l.key)}" th:lang="${l.key}" th:text="${l.value}"
+       th:classappend="${l.key == lang} ? 'current'" th:attr="aria-current=${l.key == lang} ? 'true' : null">English</a>
+  </div>
+</details>
+
+<!-- First visit: ask for the language, in every language. Hidden once one is chosen. -->
+<div class="lang-banner" th:fragment="langBanner" th:unless="${langChosen}" role="region" th:attr="aria-label=#{lang.choose}">
+  <div class="wrap">
+    <p class="lang-ask">
+      <strong th:text="#{lang.choose}">Choose your language</strong>
+      <span class="muted small" lang="hi">अपनी भाषा चुनें</span>
+      <span class="muted small" lang="ta">உங்கள் மொழியைத் தேர்ந்தெடுக்கவும்</span>
+      <span class="muted small" lang="bn">আপনার ভাষা বেছে নিন</span>
+    </p>
+    <nav class="lang-options">
+      <a th:each="l : ${siteLanguages}" th:href="${langLinks.href(l.key)}" th:lang="${l.key}" th:text="${l.value}"
+         th:classappend="${l.key == lang} ? 'current'">English</a>
+    </nav>
+  </div>
+</div>
+
 <th:block th:fragment="flash">
   <div class="alert ok" th:if="${notice}" th:text="${notice}"></div>
   <div class="alert err" th:if="${error}" th:text="${error}"></div>
 </th:block>
+
+<!-- Language links inside a page (the intake pages) -->
+<nav class="lang-picker small" th:fragment="langPicker">
+  <span th:text="#{lang.label} + ':'">Language:</span>
+  <a th:each="l : ${siteLanguages}" th:href="${langLinks.href(l.key)}" th:lang="${l.key}" th:text="${l.value}">English</a>
+</nav>
+
+<!-- A product's price and stock, in the reader's language -->
+<span th:fragment="price(p)" th:text="${p.pricePaise == null} ? #{product.askPrice} : ${p.priceLabel()}">₹0</span>
+<span th:fragment="stock(p)"
+      th:text="${p.stock == null} ? #{product.madeToOrder} : (${p.stock == 0} ? #{product.outOfStock} : (${p.stock <= 5} ? #{product.onlyLeft(${p.stock})} : #{product.inStock(${p.stock})}))">Made to order</span>
+
+<!-- Shows "Original" under a translated text, without any script -->
+<details class="original small" th:fragment="original(text, show)" th:if="${show}">
+  <summary th:text="#{common.original}">Original</summary>
+  <div class="pre" th:text="${text}"></div>
+</details>
 </body>
 </html>

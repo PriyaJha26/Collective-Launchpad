@@ -67,6 +67,11 @@ class MockGateway:
         schema = kw.get("output_config", {}).get("format", {}).get("schema", {})
         if "category" in schema.get("properties", {}):
             return self._classify(kw["messages"], model)
+        if "translations" in schema.get("properties", {}):
+            item = schema["properties"]["translations"].get("items", {}).get("properties", {})
+            if "language" in item:
+                return self._translate_to(kw["messages"], model)
+            return self._translate(kw["messages"], model)
         return self._draft(kw["messages"], model)
 
     # ---- onboarding: profile + address + products, one question, then submit ----
@@ -159,6 +164,25 @@ class MockGateway:
         else:
             category, urgency = "other", "low"
         body = json.dumps({"category": category, "urgency": urgency, "language": "en"})
+        return _message([{"type": "text", "text": body}], "end_turn", model)
+
+    def _translate(self, messages: list[dict], model: str) -> BetaMessage:
+        text = _all_text(messages)
+        fields = re.findall(r'<field name="([^"]+)">\n(.*?)\n</field>', text, re.S)
+        body = json.dumps({
+            "source_language": "hi",
+            "translations": [{"field": k, "english": f"[MOCK translation] {v}"} for k, v in fields],
+        }, ensure_ascii=False)
+        return _message([{"type": "text", "text": body}], "end_turn", model)
+
+    def _translate_to(self, messages: list[dict], model: str) -> BetaMessage:
+        text = _all_text(messages)
+        targets = re.findall(r"\((\w\w)\)", text.split("\n", 1)[0])
+        fields = re.findall(r'<field name="([^"]+)">\n(.*?)\n</field>', text, re.S)
+        body = json.dumps({
+            "source_language": "en",
+            "translations": [{"language": t, "field": k, "text": f"[MOCK {t}] {v}"} for t in targets for k, v in fields],
+        }, ensure_ascii=False)
         return _message([{"type": "text", "text": body}], "end_turn", model)
 
     def _draft(self, messages: list[dict], model: str) -> BetaMessage:

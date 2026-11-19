@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="4" th:if="${onb != null and onb.isWorking()}">
+  <title th:text="#{seller.assistant}">Assistant</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<header th:replace="~{fragments :: sellerBar}"></header>
+<main class="wrap narrow admin">
+  <th:block th:replace="~{fragments :: flash}"></th:block>
+  <h1 th:text="#{assistant.title}">Set up my shop with the assistant</h1>
+  <p class="muted" th:text="#{assistant.intro}">Send photos of your products and price list…</p>
+
+  <div class="alert info" th:unless="${seller.isEditableByAgent()}"><span th:text="#{assistant.live}">Your shop is live. Change it from</span> <a href="/seller/products" th:text="#{seller.nav.products}">Products</a> · <a href="/seller/shop" th:text="#{seller.nav.settings}">Shop settings</a></div>
+
+  <th:block th:if="${seller.isEditableByAgent()}">
+    <!-- Not started yet -->
+    <form th:if="${onb == null}" th:action="@{/seller/assistant/start}" method="post" enctype="multipart/form-data" class="panel" id="sellerForm">
+      <input type="hidden" id="language" th:value="${lang}">
+      <label for="photos"><span th:text="#{assistant.photos}">Photos</span> <span class="muted small" th:text="#{assistant.upTo(${maxPhotos})}"></span></label>
+      <input id="photos" name="photos" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+      <div class="previews" id="previews"></div>
+      <label for="notes" th:text="#{assistant.tellUs}">Tell us about your products and prices</label>
+      <div class="mic"><button type="button" class="btn secondary small" id="micBtn" th:text="'🎤 ' + #{mic.speak}">🎤 Speak</button><span id="micState" class="small muted"></span></div>
+      <textarea id="notes" name="notes" class="tall" maxlength="8000"></textarea>
+      <p class="mt"><button class="btn big" type="submit" id="submitBtn" th:text="'✨ ' + #{assistant.start}">✨ Start</button></p>
+    </form>
+
+    <th:block th:if="${onb != null}">
+      <div class="panel" th:if="${onb.isWorking()}">
+        <div class="row"><div class="spinner"></div><strong th:text="#{assistant.working}">The assistant is working…</strong></div>
+        <p class="hint" th:text="#{assistant.refreshes}">This page refreshes by itself.</p>
+      </div>
+      <div class="panel" th:if="${onb.status == 'failed'}">
+        <div class="alert err" th:text="${onb.lastError}"></div>
+        <form th:action="@{/seller/assistant/retry}" method="post"><button class="btn" type="submit" th:text="#{assistant.retry}">Try again</button></form>
+      </div>
+      <div class="panel" th:if="${onb.status == 'needs_input'}">
+        <span class="badge warn" th:text="#{assistant.question}">Question</span>
+        <p class="question mt pre" th:text="${onb.pendingQuestion}"></p>
+      </div>
+      <div class="panel" th:if="${onb.status == 'submitted'}">
+        <div class="alert ok"><span th:text="#{assistant.done}">Done! Your shop is sent to the group for approval.</span> <a href="/seller/products" th:text="#{seller.nav.products}">products</a></div>
+      </div>
+      <form th:if="${!onb.isWorking() and onb.status != 'failed'}" th:action="@{/seller/assistant/answer}" method="post"
+            enctype="multipart/form-data" class="panel" id="sellerForm">
+        <input type="hidden" id="language" th:value="${lang}">
+        <label for="notes" th:text="${onb.status == 'submitted'} ? #{assistant.addMore} : #{assistant.yourAnswer}">Your answer</label>
+        <div class="mic"><button type="button" class="btn secondary small" id="micBtn" th:text="'🎤 ' + #{mic.speak}">🎤 Speak</button><span id="micState" class="small muted"></span></div>
+        <textarea id="notes" name="answer" maxlength="4000"></textarea>
+        <label for="photos" class="small" th:text="#{assistant.morePhotos}">More photos (optional)</label>
+        <input id="photos" name="photos" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+        <div class="previews" id="previews"></div>
+        <p class="mt"><button class="btn" type="submit" id="submitBtn" th:text="#{common.send}">Send</button></p>
+      </form>
+    </th:block>
+  </th:block>
+
+  <div class="panel" th:if="${!products.isEmpty()}">
+    <h2 th:text="#{assistant.soFar}">Your products so far</h2>
+    <ul class="small">
+      <li th:each="p : ${products}"><span th:text="${p.name}"></span> · <span th:replace="~{fragments :: price(${p})}"></span> <span th:text="${p.unit}"></span>
+        <span class="badge warn" th:if="${p.needsReview}" th:text="#{seller.products.check}">check</span></li>
+    </ul>
+  </div>
+
+  <div class="panel" th:if="${!exchanges.isEmpty()}">
+    <h2 th:text="#{assistant.conversation}">Conversation</h2>
+    <div class="chat">
+      <div th:each="x : ${exchanges}" class="bubble" th:classappend="${x.who() == 'You'} ? 'you' : 'assistant'">
+        <span class="who" th:text="${x.who() == 'You'} ? #{assistant.you} : #{seller.assistant}"></span><span th:text="${x.text()}"></span>
+      </div>
+    </div>
+  </div>
+</main>
+<div class="overlay hidden" id="overlay"><div class="spinner"></div><strong th:text="#{common.sending}">Sending…</strong></div>
+<span class="hidden" id="micText" th:attr="data-start=#{mic.speak},data-stop=#{mic.stop},data-listening=#{mic.listening},data-unsupported=#{mic.unsupported},data-nolang=#{mic.noLang},data-preparing=#{photos.preparing}"></span>
+<script src="/js/photos.js"></script>
+<script src="/js/mic.js"></script>
+</body>
+</html>

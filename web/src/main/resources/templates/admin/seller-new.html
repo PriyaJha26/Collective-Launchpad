@@ -9,7 +9,10 @@
 
   <div class="alert err" th:if="${error}" th:text="${error}"></div>
 
+  <div class="alert info" th:if="${requestId != null}">Filled in from their request to join. Check it with the seller and add photos.</div>
+
   <form id="sellerForm" th:action="@{/admin/sellers/new}" method="post" enctype="multipart/form-data" class="panel">
+    <input type="hidden" name="requestId" th:if="${requestId != null}" th:value="${requestId}">
     <div class="grid2">
       <div>
         <label for="name">Seller's name</label>
@@ -32,14 +35,14 @@
     <div class="previews" id="previews"></div>
 
     <label for="notes">Notes</label>
-    <p class="hint">What she makes, prices, where she lives, anything she wants customers to know. Type, or tap the microphone and let her speak.</p>
+    <p class="hint">What they make, prices, where they live, anything they want customers to know. Type, or tap the microphone and let them speak.</p>
     <div class="mic">
       <button type="button" class="btn secondary small" id="micBtn">🎤 Start listening</button>
       <span id="micState" class="small muted"></span>
     </div>
     <textarea id="notes" name="notes" class="tall" maxlength="8000" placeholder="e.g. Meena makes besan ladoo (₹300 per kg) and cakes to order…" th:text="${form != null ? form[3] : ''}"></textarea>
 
-    <p class="mt"><button class="btn big" type="submit" id="submitBtn">✨ Draft her shop</button></p>
+    <p class="mt"><button class="btn big" type="submit" id="submitBtn">✨ Draft the shop</button></p>
   </form>
 </main>
 <div class="overlay hidden" id="overlay">

@@ -67,7 +67,7 @@ def main():
 
     step("Log in")
     page = admin.get("/login").text
-    r = admin.post("/login", data={"email": args.email, "password": args.password, "_csrf": csrf(page)})
+    r = admin.post("/login", data={"login": args.email, "password": args.password, "_csrf": csrf(page)})
     if "/admin" not in str(r.url):
         sys.exit("Login failed")
     print("logged in")

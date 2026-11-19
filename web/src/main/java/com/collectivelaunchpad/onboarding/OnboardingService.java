@@ -70,10 +70,12 @@ public class OnboardingService {
     private final ExecutorService background;
     private final TransactionTemplate tx;
     private final SiteUrls urls;
+    private final com.collectivelaunchpad.i18n.Msg msg;
 
     public OnboardingService(SellerRepository sellers, OnboardingSessionRepository sessions, UploadService uploads,
                              AgentClient agent, ObjectMapper mapper, ExecutorService backgroundExecutor,
-                             TransactionTemplate tx, SiteUrls urls) {
+                             TransactionTemplate tx, SiteUrls urls, com.collectivelaunchpad.i18n.Msg msg) {
+        this.msg = msg;
         this.sellers = sellers;
         this.sessions = sessions;
         this.uploads = uploads;
@@ -92,14 +94,7 @@ public class OnboardingService {
         if (name.isEmpty() || name.length() > 80) {
             throw new OnboardingException("Please enter the seller's name (up to 80 characters).");
         }
-        String notes = in.notes() == null ? "" : in.notes().strip();
-        if (notes.length() > 8000) {
-            throw new OnboardingException("The notes are too long. Please keep them under 8,000 characters.");
-        }
-        boolean hasPhotos = in.photos() != null && in.photos().stream().anyMatch(f -> f != null && !f.isEmpty());
-        if (notes.isEmpty() && !hasPhotos) {
-            throw new OnboardingException("Add at least one photo, or type or dictate some notes about the seller.");
-        }
+        checkInput(in.notes(), in.photos());
         String language = LANGUAGES.containsKey(in.language()) ? in.language() : "hi";
 
         Seller seller = new Seller();
@@ -108,14 +103,42 @@ public class OnboardingService {
         seller.language = language;
         seller.whatsapp = clip(in.whatsapp(), 20);
         sellers.save(seller);
-
-        List<UploadService.Photo> photos;
         try {
-            photos = uploads.storeAll(seller.id, in.photos());
+            return startSession(group, seller, in.notes(), in.photos(), false);
         } catch (RuntimeException e) {
             sellers.delete(seller);
             throw e;
         }
+    }
+
+    /** A self-registered seller sets up their own draft shop with the assistant. */
+    public OnboardingSession startForSeller(Group group, Seller seller, String notes, List<MultipartFile> photos) {
+        if (!seller.isEditableByAgent()) {
+            throw new OnboardingException(msg.get("err.shopLive"));
+        }
+        checkInput(notes, photos);
+        return startSession(group, seller, notes, photos, true);
+    }
+
+    private void checkInput(String rawNotes, List<MultipartFile> photos) {
+        String notes = rawNotes == null ? "" : rawNotes.strip();
+        if (notes.length() > 8000) {
+            throw new OnboardingException(msg.get("err.notesLong"));
+        }
+        boolean hasPhotos = photos != null && photos.stream().anyMatch(f -> f != null && !f.isEmpty());
+        if (notes.isEmpty() && !hasPhotos) {
+            throw new OnboardingException(msg.get("err.notesOrPhoto"));
+        }
+    }
+
+    private OnboardingSession startSession(Group group, Seller seller, String rawNotes, List<MultipartFile> files, boolean bySeller) {
+        String notes = rawNotes == null ? "" : rawNotes.strip();
+        List<UploadService.Photo> photos = uploads.storeAll(seller.id, files);
+        String language = LANGUAGES.getOrDefault(seller.language, "Hindi");
+        String audience = bySeller
+                ? "You are talking directly to the seller, not the group admin. Write ask_seller questions in "
+                  + language + ", in very simple words."
+                : "You are talking to the group admin, who relays questions to the seller.";
 
         ArrayNode input = mapper.createArrayNode();
         input.add(text("""
@@ -124,15 +147,16 @@ public class OnboardingService {
                 WhatsApp number: %s
                 Group: %s%s
                 Shop addresses look like <address>.%s
+                %s
 
-                Notes from the group admin (typed or dictated, may be in any language):
+                Notes (typed or dictated, may be in any language):
                 <notes>
                 %s
                 </notes>
                 %s""".formatted(
-                name, LANGUAGES.get(language), seller.whatsapp == null || seller.whatsapp.isBlank() ? "not given" : "given",
+                seller.name, language, seller.whatsapp == null || seller.whatsapp.isBlank() ? "not given" : "given",
                 group.name, group.location == null || group.location.isBlank() ? "" : " (" + group.location + ")",
-                urls.domain(), notes.isEmpty() ? "(none)" : notes,
+                urls.domain(), audience, notes.isEmpty() ? "(none)" : notes,
                 photos.isEmpty() ? "No photos." : photos.size() + " photo(s) follow, each labelled with its id.")));
         addPhotos(input, photos);
 
@@ -147,31 +171,35 @@ public class OnboardingService {
 
     /** The admin answers the agent's question (or says "continue"), optionally with more photos. */
     public void answer(long sessionId, String answer, List<MultipartFile> photos) {
+        answer(sessionId, answer, photos, false);
+    }
+
+    public void answer(long sessionId, String answer, List<MultipartFile> photos, boolean bySeller) {
         OnboardingSession session = find(sessionId);
         if (session.isWorking()) {
-            throw new OnboardingException("The assistant is still working on the last message. Please wait a moment.");
+            throw new OnboardingException(msg.get("err.assistantBusy"));
         }
         if (SessionStatus.FAILED.equals(session.status) && session.inflightInput != null) {
-            throw new OnboardingException("The last message did not go through. Use \"Try again\" first.");
+            throw new OnboardingException(msg.get("err.assistantRetryFirst"));
         }
         Seller seller = sellers.findById(session.sellerId).orElseThrow();
         if (!seller.isEditableByAgent()) {
-            throw new OnboardingException("This shop is already published. Edit it directly instead.");
+            throw new OnboardingException(msg.get("err.shopLive"));
         }
         String text = answer == null ? "" : answer.strip();
         boolean hasPhotos = photos != null && photos.stream().anyMatch(f -> f != null && !f.isEmpty());
         if (text.isEmpty() && !hasPhotos) {
-            throw new OnboardingException("Type an answer, or add photos.");
+            throw new OnboardingException(msg.get("err.answerOrPhoto"));
         }
         if (text.length() > 4000) {
-            throw new OnboardingException("The answer is too long. Please keep it under 4,000 characters.");
+            throw new OnboardingException(msg.get("err.answerLong"));
         }
         List<UploadService.Photo> stored = uploads.storeAll(seller.id, photos);
 
         // Pending tool results first, then the admin's words as a separate text block.
         ArrayNode input = mapper.createArrayNode();
         session.pendingToolResults.forEach(input::add);
-        input.add(text("Message from the group admin:\n" + (text.isEmpty() ? "(see the new photos)" : text)
+        input.add(text((bySeller ? "Message from the seller:\n" : "Message from the group admin:\n") + (text.isEmpty() ? "(see the new photos)" : text)
                 + (stored.isEmpty() ? "" : "\n\n" + stored.size() + " new photo(s) follow, each labelled with its id.")));
         addPhotos(input, stored);
 
@@ -188,7 +216,7 @@ public class OnboardingService {
     public void retry(long sessionId) {
         OnboardingSession session = find(sessionId);
         if (!SessionStatus.FAILED.equals(session.status) || session.inflightInput == null) {
-            throw new OnboardingException("There is nothing to retry.");
+            throw new OnboardingException(msg.get("err.nothingToRetry"));
         }
         session.status = SessionStatus.WORKING;
         session.lastError = null;

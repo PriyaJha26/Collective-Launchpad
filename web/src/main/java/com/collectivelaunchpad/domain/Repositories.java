@@ -15,8 +15,36 @@ public final class Repositories {
         Optional<Group> findFirstByOrderByIdAsc();
     }
 
-    public interface AdminRepository extends JpaRepository<Admin, Long> {
-        Optional<Admin> findByEmailIgnoreCase(String email);
+    public interface AccountRepository extends JpaRepository<Account, Long> {
+        Optional<Account> findByEmailIgnoreCase(String email);
+
+        Optional<Account> findByPhone(String phone);
+
+        Optional<Account> findBySellerId(Long sellerId);
+
+        List<Account> findAllByOrderByCreatedAtDesc();
+
+        boolean existsByPhone(String phone);
+
+        boolean existsByEmailIgnoreCase(String email);
+    }
+
+    public interface OrderRepository extends JpaRepository<Order, Long> {
+        List<Order> findBySellerIdOrderByCreatedAtDesc(Long sellerId);
+
+        List<Order> findByCustomerIdOrderByCreatedAtDesc(Long customerId);
+
+        List<Order> findTop100ByOrderByCreatedAtDesc();
+
+        long countBySellerIdAndStatus(Long sellerId, String status);
+
+        long countByStatus(String status);
+    }
+
+    public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
+        List<OrderItem> findByOrderIdOrderByIdAsc(Long orderId);
+
+        List<OrderItem> findByOrderIdInOrderByIdAsc(Collection<Long> orderIds);
     }
 
     public interface SellerRepository extends JpaRepository<Seller, Long> {
@@ -41,6 +69,21 @@ public final class Repositories {
         long countBySellerId(Long sellerId);
 
         Optional<Product> findByIdAndSellerId(Long id, Long sellerId);
+
+        List<Product> findBySellerIdInAndIsAvailableTrueOrderBySellerIdAscSortOrderAscIdAsc(Collection<Long> sellerIds);
+
+        /** Takes stock only if enough is left (or stock is not counted). Returns 1 on success, 0 if not enough. */
+        @org.springframework.data.jpa.repository.Modifying
+        @org.springframework.data.jpa.repository.Query(
+                "update Product p set p.stock = p.stock - :qty where p.id = :id and p.stock is not null and p.stock >= :qty")
+        int takeStock(@org.springframework.data.repository.query.Param("id") long id,
+                      @org.springframework.data.repository.query.Param("qty") int qty);
+
+        @org.springframework.data.jpa.repository.Modifying
+        @org.springframework.data.jpa.repository.Query(
+                "update Product p set p.stock = p.stock + :qty where p.id = :id and p.stock is not null")
+        int returnStock(@org.springframework.data.repository.query.Param("id") long id,
+                        @org.springframework.data.repository.query.Param("qty") int qty);
     }
 
     public interface OnboardingSessionRepository extends JpaRepository<OnboardingSession, Long> {
@@ -55,12 +98,26 @@ public final class Repositories {
         List<Enquiry> findTop30ByStatusInOrderByCreatedAtDesc(Collection<String> statuses);
 
         long countByStatusIn(Collection<String> statuses);
+
+        List<Enquiry> findBySellerIdOrderByCreatedAtDesc(Long sellerId);
+
+        List<Enquiry> findByCustomerUserIdOrderByCreatedAtDesc(Long customerUserId);
+
+        long countBySellerIdAndStatusIn(Long sellerId, Collection<String> statuses);
     }
 
     public interface ReplyRepository extends JpaRepository<Reply, Long> {
         List<Reply> findByEnquiryIdOrderByIdDesc(Long enquiryId);
 
         Optional<Reply> findFirstByEnquiryIdAndStatusInOrderByIdDesc(Long enquiryId, Collection<String> statuses);
+    }
+
+    public interface GroupRequestRepository extends JpaRepository<GroupRequest, Long> {
+        List<GroupRequest> findByStatusInOrderByCreatedAtDesc(Collection<String> statuses);
+
+        List<GroupRequest> findTop50ByStatusInOrderByCreatedAtDesc(Collection<String> statuses);
+
+        long countByStatusIn(Collection<String> statuses);
     }
 
     public interface EmailLogRepository extends JpaRepository<EmailLog, Long> {

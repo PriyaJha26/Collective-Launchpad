@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<head th:replace="~{fragments :: head(#{register.title} + ' · ' + ${group.name})}"></head>
+<body>
+<header th:replace="~{fragments :: siteBar}"></header>
+<main class="wrap login-box">
+  <div class="panel">
+    <h1 th:text="#{register.title}">Create an account</h1>
+    <p class="muted" th:text="#{register.intro}">To order and to see replies from sellers. Browsing needs no account.</p>
+    <div class="alert err" th:if="${error}" th:text="${error}"></div>
+    <form th:action="@{/register(next=${param.next})}" method="post">
+      <label for="name" th:text="#{common.yourName}">Your name</label>
+      <input id="name" name="name" type="text" maxlength="80" required th:value="${form != null ? form[0] : ''}">
+      <label for="phone" th:text="#{reg.mobile}">Mobile number (you log in with this)</label>
+      <input id="phone" name="phone" type="tel" maxlength="20" required placeholder="98xxxxxxxx" th:value="${form != null ? form[1] : ''}">
+      <label for="email" th:text="#{account.email}">Email (optional, for order updates)</label>
+      <input id="email" name="email" type="email" maxlength="200" th:value="${form != null ? form[2] : ''}">
+      <label for="password" th:text="#{reg.password}">Choose a password (at least 8 characters)</label>
+      <input id="password" name="password" type="password" minlength="8" autocomplete="new-password" required>
+      <p class="mt"><button class="btn" type="submit" th:text="#{register.submit}">Create account</button></p>
+    </form>
+    <p class="small"><span th:text="#{reg.have}">Already registered?</span> <a href="/login" th:text="#{reg.login}">Log in</a> · <span th:text="#{register.wantSell}">Want to sell?</span> <a href="/register/seller" th:text="#{reg.title}">Register your shop</a></p>
+  </div>
+</main>
+</body>
+</html>

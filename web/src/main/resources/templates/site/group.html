@@ -1,33 +1,74 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
 <head th:replace="~{fragments :: head(${group.name})}"></head>
 <body>
+<header th:replace="~{fragments :: siteBar}"></header>
 <main class="wrap">
   <section class="home-hero">
     <h1 th:text="${group.name}">Group</h1>
-    <p class="muted" th:if="${group.tagline}" th:text="${group.tagline}"></p>
-    <p th:if="${group.description}" th:text="${group.description}"></p>
+    <p class="muted" th:if="${!#strings.isEmpty(group.tagline)}" th:text="${group.tagline}"></p>
+    <p th:if="${!#strings.isEmpty(group.description)}" th:text="${group.description}"></p>
     <p class="small muted">
-      <span th:if="${group.location}" th:text="${group.location} + ' · '"></span>
-      <span th:text="${shops.size()} + (${shops.size()} == 1 ? ' seller' : ' sellers') + ' · one shared website'"></span>
+      <span th:if="${!#strings.isEmpty(group.location)}" th:text="${group.location} + ' · '"></span>
+      <span th:text="#{group.sellerCount(${shops.size()})}"></span>
     </p>
+    <div class="row center-row">
+      <a class="btn" href="/products" th:text="#{group.browse}">Browse all products</a>
+      <a class="btn secondary" href="#shops" th:text="#{group.seeShops}">See the shops</a>
+      <a class="btn secondary" href="/register/seller" th:text="#{nav.sell}">Sell with us</a>
+    </div>
   </section>
 
-  <p class="muted center" th:if="${shops.isEmpty()}">Shops are being set up. Please visit again soon.</p>
+  <section id="shops">
+    <p class="muted center" th:if="${shops.isEmpty()}" th:text="#{group.noShops}">Shops are being set up.</p>
+    <div class="cards">
+      <a class="card-link" th:each="s : ${shops}" th:href="${urls.shopUrl(s.slug)}">
+        <div class="body">
+          <h3 th:text="${s.shopNameIn(lang)}">Shop</h3>
+          <p class="small muted" th:if="${s.location}" th:text="${s.locationIn(lang)}"></p>
+          <div class="addr" th:text="${urls.shopHost(s.slug)}"></div>
+        </div>
+      </a>
+    </div>
+  </section>
 
-  <div class="cards">
-    <a class="card-link" th:each="s : ${shops}" th:href="${urls.shopUrl(s.slug)}">
-      <div class="body">
-        <h3 th:text="${s.shopName}">Shop</h3>
-        <p class="small muted" th:if="${s.location}" th:text="${s.location}"></p>
-        <div class="addr" th:text="${urls.shopHost(s.slug)}"></div>
+  <section class="block">
+    <div class="panel join-cta">
+      <h2 th:text="#{group.joinTitle}">Make things by hand? Get your own shop page here.</h2>
+      <p th:text="#{group.joinText}">Home bakers, weavers…</p>
+      <div class="row">
+        <a class="btn" href="/register/seller" th:text="#{reg.title}">Register your shop</a>
+        <a class="btn secondary" href="/join" th:text="#{group.askSetup}">Ask us to set it up for you</a>
       </div>
-    </a>
-  </div>
+    </div>
+  </section>
+
+  <section class="block" id="contact">
+    <h2 th:text="#{join.contact}">Contact us</h2>
+    <div class="contact">
+      <div class="alert ok" th:if="${sent}" th:text="#{group.contactSent}">Thank you!</div>
+      <div class="alert err" th:if="${contactError}" th:text="${contactError}"></div>
+      <form method="post" action="/contact-us">
+        <div class="grid2">
+          <div><label for="c-name" th:text="#{common.yourName}">Your name</label><input id="c-name" name="name" type="text" maxlength="100" required th:value="${contactForm?.name()}"></div>
+          <div><label for="c-phone" th:text="#{common.phone}">Phone</label><input id="c-phone" name="phone" type="tel" maxlength="20" th:value="${contactForm?.phone()}"></div>
+        </div>
+        <label for="c-email" th:text="#{common.email}">Email</label>
+        <input id="c-email" name="email" type="email" maxlength="200" th:value="${contactForm?.email()}">
+        <p class="hint" th:text="#{common.contactHint}">Give a phone number or an email address so we can reply.</p>
+        <label for="c-message" th:text="#{common.message}">Message</label>
+        <textarea id="c-message" name="message" maxlength="4000" required th:text="${contactForm?.message()}"></textarea>
+        <div class="hp" aria-hidden="true"><label for="c-website">Leave this empty</label><input id="c-website" type="text" name="website" tabindex="-1" autocomplete="off"></div>
+        <p class="mt"><button class="btn" type="submit" th:text="#{common.sendMessage}">Send message</button></p>
+      </form>
+    </div>
+  </section>
 </main>
 <footer class="site"><div class="wrap">
-  Contact the group: <a th:href="'mailto:' + ${group.contactEmail}" th:text="${group.contactEmail}"></a>
-  · <a href="/login">Group admin</a>
+  <span th:text="${group.name}"></span> ·
+  <a th:href="'mailto:' + ${group.contactEmail}" th:text="${group.contactEmail}"></a>
+  · <a href="/join" th:text="#{nav.sell}">Sell with us</a>
+  · <a href="/login" th:text="#{group.adminLogin}">Group admin</a>
 </div></footer>
 </body>
 </html>

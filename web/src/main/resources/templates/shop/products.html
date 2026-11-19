@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<head th:replace="~{fragments :: head(#{nav.products} + ' · ' + ${group.name})}"></head>
+<body>
+<header th:replace="~{fragments :: siteBar}"></header>
+<main class="wrap">
+  <th:block th:replace="~{fragments :: flash}"></th:block>
+  <h1 class="mt" th:text="#{products.title}">All products</h1>
+  <form class="search" method="get" action="/products">
+    <input type="text" name="q" th:value="${q}" th:placeholder="#{products.searchPlaceholder}" th:attr="aria-label=#{products.search}">
+    <select name="shop" th:attr="aria-label=#{products.shop}">
+      <option value="" th:text="#{products.allShops}">All shops</option>
+      <option th:each="s : ${shops}" th:value="${s.id}" th:text="${s.shopNameIn(lang)}" th:selected="${shop == s.id}">Shop</option>
+    </select>
+    <button class="btn" type="submit" th:text="#{products.search}">Search</button>
+  </form>
+  <p class="muted" th:if="${products.isEmpty()}" th:text="#{products.none}">No products found.</p>
+  <div class="products">
+    <article class="product" th:each="p : ${products}">
+      <a class="photo" th:href="@{/p/{id}(id=${p.id})}">
+        <img th:if="${p.imageUrl() != null}" th:src="${p.imageUrl()}" th:alt="${p.nameIn(lang)}" loading="lazy">
+        <span th:unless="${p.imageUrl() != null}" aria-hidden="true">✿</span>
+      </a>
+      <div class="body">
+        <h3><a th:href="@{/p/{id}(id=${p.id})}" th:text="${p.nameIn(lang)}">Product</a></h3>
+        <div class="small muted" th:text="${shopsById[p.sellerId].shopNameIn(lang)}"></div>
+        <div class="price"><span th:replace="~{fragments :: price(${p})}"></span> <span class="unit" th:if="${p.pricePaise != null}" th:text="${p.unitIn(lang)}"></span></div>
+        <div class="small muted"><span th:replace="~{fragments :: stock(${p})}"></span></div>
+        <a class="btn small ask" th:href="@{/p/{id}(id=${p.id})}" th:text="${p.canBeOrdered()} ? #{products.viewBuy} : #{products.view}">View</a>
+      </div>
+    </article>
+  </div>
+</main>
+</body>
+</html>

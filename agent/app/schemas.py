@@ -84,6 +84,8 @@ class EnquiryBrief(BaseModel):
     customer_name: str = ""
     message: str
     category: str | None = None
+    # What the customer picked on the form: question, discount, custom, order
+    topic: str | None = None
 
 
 class DraftReplyRequest(BaseModel):
@@ -91,6 +93,8 @@ class DraftReplyRequest(BaseModel):
     seller: SellerBrief
     catalogue: list[CatalogueItem] = Field(default_factory=list)
     enquiry: EnquiryBrief
+    # The seller reads and edits the draft in their own language; it is translated for the customer on sending.
+    reply_language: str = ""
 
 
 class DraftReplyResult(BaseModel):
@@ -101,13 +105,107 @@ class DraftReplyResult(BaseModel):
 DRAFT_SCHEMA = {
     "type": "object",
     "properties": {
-        "reply": {"type": "string", "description": "The reply to send, in the customer's language."},
+        "reply": {"type": "string", "description": "The reply to send, in the requested reply language."},
         "check_points": {
             "type": "array",
             "items": {"type": "string"},
-            "description": "Short points the admin must confirm with the seller before sending. Empty if none.",
+            "description": "Short points to confirm before sending, in the reply language. Empty if none.",
         },
     },
     "required": ["reply", "check_points"],
+    "additionalProperties": False,
+}
+
+
+# ---------------------------------------------------------------------------
+# Translation (join requests written in a local language -> English for the superadmin)
+# ---------------------------------------------------------------------------
+
+
+class TranslateRequest(BaseModel):
+    fields: dict[str, str]
+
+
+class FieldTranslation(BaseModel):
+    field: str
+    english: str
+
+
+class TranslateResult(BaseModel):
+    source_language: str
+    translations: list[FieldTranslation]
+
+
+TRANSLATE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "source_language": {"type": "string", "description": "ISO 639-1 code of the main language of the input, e.g. hi, ta"},
+        "translations": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"field": {"type": "string"}, "english": {"type": "string"}},
+                "required": ["field", "english"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    "required": ["source_language", "translations"],
+    "additionalProperties": False,
+}
+
+
+# ---------------------------------------------------------------------------
+# Translation into the reader's language (messages, replies, shop and product texts)
+# ---------------------------------------------------------------------------
+
+LANGUAGE_NAMES = {
+    "en": "English", "hi": "Hindi", "mr": "Marathi", "ta": "Tamil", "te": "Telugu", "kn": "Kannada",
+    "ml": "Malayalam", "bn": "Bengali", "gu": "Gujarati", "pa": "Punjabi", "or": "Odia", "ur": "Urdu",
+}
+
+
+class TranslateToRequest(BaseModel):
+    fields: dict[str, str]
+    targets: list[str]
+
+
+class TranslateToResult(BaseModel):
+    source_language: str
+    # {target language: {field: text}}
+    results: dict[str, dict[str, str]]
+
+
+class _TranslatedField(BaseModel):
+    language: str
+    field: str
+    text: str
+
+
+class TranslateToRaw(BaseModel):
+    source_language: str
+    translations: list[_TranslatedField]
+
+
+TRANSLATE_TO_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "source_language": {"type": "string", "description": "ISO 639-1 code of the main language of the input, e.g. hi, ta, en"},
+        "translations": {
+            "type": "array",
+            "description": "One item per (target language, field) pair.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "language": {"type": "string", "enum": list(LANGUAGE_NAMES)},
+                    "field": {"type": "string"},
+                    "text": {"type": "string"},
+                },
+                "required": ["language", "field", "text"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    "required": ["source_language", "translations"],
     "additionalProperties": False,
 }

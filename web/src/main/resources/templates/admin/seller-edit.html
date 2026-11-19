@@ -50,6 +50,25 @@
     </th:block>
   </div>
 
+  <!-- The seller's own login -->
+  <div class="panel">
+    <h2>Seller login</h2>
+    <p class="small muted" th:if="${seller.registeredBy == 'self'}">This seller registered on the website.</p>
+    <th:block th:if="${login != null}">
+      <p>Logs in with <strong th:text="${login.login()}"></strong>
+        <span class="badge neutral" th:unless="${login.active}">switched off</span></p>
+      <form th:action="@{/admin/users/{id}/reset-password(id=${login.id})}" method="post" class="inline">
+        <button class="btn small ghost" type="submit" data-confirm="Make a new password for this seller?">Reset password</button></form>
+    </th:block>
+    <form th:if="${login == null}" th:action="@{/admin/sellers/{id}/login(id=${seller.id})}" method="post">
+      <p class="small">Give this seller a login so they can manage products, orders and messages themselves. A password is generated for you to hand over.</p>
+      <div class="row">
+        <input name="phone" type="tel" maxlength="20" required placeholder="Seller's mobile number" class="slug" th:value="${seller.whatsapp}">
+        <button class="btn small" type="submit">Create login</button>
+      </div>
+    </form>
+  </div>
+
   <!-- Edit -->
   <form th:action="@{/admin/sellers/{id}(id=${seller.id})}" method="post" class="panel">
     <h2>Shop details</h2>
@@ -63,6 +82,8 @@
       <div><label for="sname">Seller's name</label><input id="sname" name="name" type="text" maxlength="80" required th:value="${seller.name}"></div>
       <div><label for="wa">WhatsApp</label><input id="wa" name="whatsapp" type="tel" maxlength="20" th:value="${seller.whatsapp}"></div>
     </div>
+    <label for="upi">UPI ID (customers pay the seller here)</label>
+    <input id="upi" name="upiId" type="text" maxlength="100" placeholder="e.g. meena@okaxis" th:value="${seller.upiId}">
     <label for="shopName">Shop name</label>
     <input id="shopName" name="shopName" type="text" maxlength="80" required th:value="${seller.shopName}" th:classappend="${seller.unsure('shop_name')} ? 'unsure'">
     <label for="location">Location</label>
@@ -92,6 +113,8 @@
             <input type="text" maxlength="40" th:name="'products[' + ${st.index} + '].unit'" th:value="${p.unit}" th:classappend="${p.unsure('unit')} ? 'unsure'">
           </div>
         </div>
+        <label class="small">In stock <span class="muted">blank = made to order</span></label>
+        <input type="number" min="0" max="100000" class="qty" th:name="'products[' + ${st.index} + '].stock'" th:value="${p.stock}">
         <p class="small muted" th:if="${p.unsure('photo')}"><span class="badge warn">check</span> The assistant was not sure this photo matches.</p>
         <div class="row mt">
           <label class="plain small">

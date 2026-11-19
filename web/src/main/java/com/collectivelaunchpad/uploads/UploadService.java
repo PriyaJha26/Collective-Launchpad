@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.collectivelaunchpad.config.AppProperties;
+import com.collectivelaunchpad.i18n.Msg;
 
 /**
  * Product photos. Images only (type checked from the file's first bytes, not its name), size
@@ -41,8 +42,10 @@ public class UploadService {
     }
 
     private final Path root;
+    private final Msg msg;
 
-    public UploadService(AppProperties props) throws IOException {
+    public UploadService(AppProperties props, Msg msg) throws IOException {
+        this.msg = msg;
         this.root = Path.of(props.uploadsDir()).toAbsolutePath().normalize();
         Files.createDirectories(root);
     }
@@ -54,14 +57,14 @@ public class UploadService {
     public List<Photo> storeAll(long sellerId, List<MultipartFile> files) {
         List<MultipartFile> real = files == null ? List.of() : files.stream().filter(f -> f != null && !f.isEmpty()).toList();
         if (real.size() > MAX_FILES_PER_REQUEST) {
-            throw new UploadException("Please choose at most " + MAX_FILES_PER_REQUEST + " photos at a time.");
+            throw new UploadException(msg.get("err.tooManyPhotos", MAX_FILES_PER_REQUEST));
         }
         // Validate everything before writing anything.
         List<byte[]> contents = new ArrayList<>();
         List<String> exts = new ArrayList<>();
         for (MultipartFile f : real) {
             if (f.getSize() > MAX_BYTES) {
-                throw new UploadException("\"" + f.getOriginalFilename() + "\" is larger than 10 MB.");
+                throw new UploadException(msg.get("err.photoTooBig", f.getOriginalFilename()));
             }
             byte[] bytes;
             try {
@@ -70,7 +73,7 @@ public class UploadService {
                 throw new UncheckedIOException(e);
             }
             String ext = detect(bytes).orElseThrow(() ->
-                    new UploadException("\"" + f.getOriginalFilename() + "\" is not a JPG, PNG or WebP photo."));
+                    new UploadException(msg.get("err.notAPhoto", f.getOriginalFilename())));
             contents.add(bytes);
             exts.add(ext);
         }

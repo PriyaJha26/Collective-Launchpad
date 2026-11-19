@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<head th:replace="~{fragments :: head(#{checkout.title(${cart.seller().shopNameIn(lang)})})}"></head>
+<body>
+<header th:replace="~{fragments :: siteBar}"></header>
+<main class="wrap narrow">
+  <h1 class="mt" th:text="#{checkout.title(${cart.seller().shopNameIn(lang)})}">Checkout</h1>
+  <div class="alert err" th:if="${error}" th:text="${error}"></div>
+
+  <div class="panel">
+    <div class="line" th:each="l : ${cart.lines()}">
+      <img th:if="${l.product().imageUrl() != null}" th:src="${l.product().imageUrl()}" alt="">
+      <div th:unless="${l.product().imageUrl() != null}" class="noimg"></div>
+      <div><span th:text="${l.product().nameIn(lang)}"></span><div class="small muted" th:text="${l.quantity()} + ' × ' + ${l.product().priceLabel()} + ' ' + ${l.product().unitIn(lang)}"></div></div>
+      <strong th:text="${l.totalLabel()}"></strong>
+    </div>
+    <p class="total mt" th:text="#{common.total(${cart.totalLabel()})}"></p>
+  </div>
+
+  <form th:action="@{/checkout/{id}(id=${cart.seller().id})}" method="post" class="panel">
+    <div class="grid2">
+      <div><label for="name" th:text="#{common.yourName}">Your name</label><input id="name" name="name" type="text" maxlength="100" required th:value="${form.name()}"></div>
+      <div><label for="phone" th:text="#{common.mobile}">Mobile number</label><input id="phone" name="phone" type="tel" maxlength="20" required th:value="${form.phone()}"></div>
+    </div>
+
+    <label th:text="#{checkout.delivery}">Delivery</label>
+    <label class="radio"><input type="radio" name="delivery" value="delivery" th:checked="${form.delivery() != 'pickup'}"> <span th:text="#{checkout.deliver}">Deliver to my address</span></label>
+    <label class="radio"><input type="radio" name="delivery" value="pickup" th:checked="${form.delivery() == 'pickup'}"> <span th:text="#{checkout.pickup}">I will pick it up from the seller</span></label>
+    <label for="address" class="small" th:text="#{checkout.address}">Delivery address</label>
+    <textarea id="address" name="address" maxlength="500" th:text="${form.address()}"></textarea>
+    <p class="hint" th:text="#{checkout.deliveryHint}">The seller will contact you to agree on delivery charges, if any.</p>
+
+    <label th:text="#{checkout.payment}">Payment (paid directly to the seller)</label>
+    <label class="radio"><input type="radio" name="payment" value="cod" th:checked="${form.payment() != 'upi'}"> <span th:text="#{checkout.cod}">Cash on delivery / at pickup</span></label>
+    <label class="radio" th:if="${!#strings.isEmpty(cart.seller().upiId)}"><input type="radio" name="payment" value="upi" th:checked="${form.payment() == 'upi'}">
+      <span><span th:text="#{checkout.upi}">UPI to the seller</span> (<span class="upi" th:text="${cart.seller().upiId}"></span>) — <span th:text="#{checkout.upiAfter}">you pay after placing the order</span></span></label>
+
+    <label for="note" th:text="#{checkout.note}">Note for the seller (optional)</label>
+    <textarea id="note" name="note" maxlength="1000" th:text="${form.note()}"></textarea>
+    <p class="hint" th:text="#{common.anyLanguage}">Write in any language.</p>
+
+    <p class="mt"><button class="btn big" type="submit" th:text="#{checkout.place(${cart.totalLabel()})}">Place order</button></p>
+  </form>
+</main>
+</body>
+</html>

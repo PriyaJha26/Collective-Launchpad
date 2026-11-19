@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<head th:replace="~{fragments :: head((${product.id} == null ? #{seller.products.add} : ${product.name}) + ' · ' + ${group.name})}"></head>
+<body>
+<header th:replace="~{fragments :: sellerBar}"></header>
+<main class="wrap narrow admin">
+  <th:block th:replace="~{fragments :: flash}"></th:block>
+  <p class="small"><a href="/seller/products" th:text="'← ' + #{seller.products.title}">← My products</a></p>
+  <h1 th:text="${product.id} == null ? #{seller.products.add} : #{seller.product.edit}">Product</h1>
+
+  <form th:action="${product.id} == null ? @{/seller/products/new} : @{/seller/products/{id}(id=${product.id})}"
+        method="post" enctype="multipart/form-data" class="panel" id="sellerForm">
+    <label for="name" th:text="#{seller.product.name}">Name</label>
+    <input id="name" name="name" type="text" maxlength="120" required th:value="${product.name}">
+
+    <label for="description" th:text="#{seller.product.description}">Description</label>
+    <textarea id="description" name="description" maxlength="600" th:text="${product.description}"></textarea>
+    <p class="hint" th:text="#{seller.product.translatedHint}">Write in your own language. Customers see it translated into theirs.</p>
+
+    <div class="grid2">
+      <div>
+        <label for="price" th:text="#{seller.product.price}">Price (₹)</label>
+        <input id="price" name="price" type="text" inputmode="decimal" th:placeholder="#{seller.product.priceExample}" th:value="${product.priceRupeesText()}">
+        <p class="hint" th:text="#{seller.product.priceHint}">Leave empty to show "Ask for price".</p>
+      </div>
+      <div>
+        <label for="unit" th:text="#{seller.product.unit}">Per</label>
+        <input id="unit" name="unit" type="text" maxlength="40" th:placeholder="#{seller.product.unitExample}" th:value="${product.unit}">
+      </div>
+    </div>
+
+    <label for="stock" th:text="#{seller.product.stock}">Quantity in stock</label>
+    <input id="stock" name="stock" type="number" min="0" max="100000" class="qty" th:value="${product.stock}">
+    <p class="hint" th:text="#{seller.product.stockHint}">Leave empty if you make it to order.</p>
+
+    <label class="plain mt"><input type="checkbox" name="available" value="true" th:checked="${product.id == null or product.isAvailable}"> <span th:text="#{seller.product.show}">Show to customers</span></label>
+
+    <label for="photo" th:text="#{seller.product.photo}">Photo</label>
+    <img class="thumb-sm" th:if="${product.imageUrl() != null}" th:src="${product.imageUrl()}" alt="">
+    <input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp">
+    <label class="plain small" th:if="${product.imageUrl() != null}"><input type="checkbox" name="removePhoto" value="true"> <span th:text="#{seller.product.removePhoto}">Remove the photo</span></label>
+
+    <p class="mt"><button class="btn" type="submit" id="submitBtn" th:text="#{common.save}">Save</button></p>
+  </form>
+</main>
+</body>
+</html>

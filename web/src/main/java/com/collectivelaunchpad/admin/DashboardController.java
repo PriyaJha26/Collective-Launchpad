@@ -20,6 +20,7 @@ import com.collectivelaunchpad.domain.Repositories.SellerRepository;
 import com.collectivelaunchpad.domain.Seller;
 import com.collectivelaunchpad.enquiry.EnquiryService;
 import com.collectivelaunchpad.mail.MailService;
+import com.collectivelaunchpad.site.GroupRequestService;
 
 @Controller
 public class DashboardController {
@@ -30,9 +31,11 @@ public class DashboardController {
     private final MailService mail;
     private final AgentClient agent;
     private final AppProperties props;
+    private final GroupRequestService requests;
 
     public DashboardController(SellerRepository sellers, OnboardingSessionRepository sessions, EnquiryRepository enquiries,
-                               MailService mail, AgentClient agent, AppProperties props) {
+                               MailService mail, AgentClient agent, AppProperties props, GroupRequestService requests) {
+        this.requests = requests;
         this.sellers = sellers;
         this.sessions = sessions;
         this.enquiries = enquiries;
@@ -56,6 +59,7 @@ public class DashboardController {
         model.addAttribute("published", published);
         model.addAttribute("pendingReview", all.stream().filter(s -> SellerStatus.PENDING_REVIEW.equals(s.status)).count());
         model.addAttribute("openEnquiries", enquiries.countByStatusIn(EnquiryService.OPEN));
+        model.addAttribute("openRequests", requests.openCount());
         model.addAttribute("monthlyCost", props.costs().monthlyTotal());
         model.addAttribute("costPerSeller", props.costs().monthlyTotal() / Math.max(1, published));
         model.addAttribute("mailMode", mail.mode());

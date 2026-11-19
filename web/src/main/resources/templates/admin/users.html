@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Users · ' + ${group.name})}"></head>
+<body>
+<header th:replace="~{fragments :: adminBar}"></header>
+<main class="wrap admin">
+  <th:block th:replace="~{fragments :: flash}"></th:block>
+  <h1>Users</h1>
+  <p class="muted">Everyone with a login. Sellers you added yourself get a login from their shop page ("Seller login").</p>
+  <div class="panel scroll">
+    <table class="list">
+      <thead><tr><th>Name</th><th>Role</th><th>Login</th><th>Shop</th><th>Joined</th><th>Last login</th><th></th></tr></thead>
+      <tbody>
+      <tr th:each="a : ${accounts}">
+        <td><strong th:text="${a.name}"></strong> <span class="badge neutral" th:unless="${a.active}">switched off</span></td>
+        <td th:switch="${a.role}">
+          <span th:case="'superadmin'" class="badge warn">Superadmin</span>
+          <span th:case="'seller'" class="badge good">Seller</span>
+          <span th:case="*" class="badge neutral">Customer</span>
+        </td>
+        <td class="small"><div th:text="${a.phone}"></div><div class="muted" th:text="${a.email}"></div></td>
+        <td class="small"><a th:if="${a.sellerId != null and shops[a.sellerId] != null}" th:href="@{/admin/sellers/{id}(id=${a.sellerId})}" th:text="${shops[a.sellerId].shopName ?: shops[a.sellerId].name}"></a></td>
+        <td class="small nowrap" th:text="${#temporals.format(a.createdAt, 'dd MMM yyyy')}"></td>
+        <td class="small nowrap" th:text="${a.lastLoginAt != null} ? ${#temporals.format(a.lastLoginAt, 'dd MMM HH:mm')} : '—'"></td>
+        <td class="nowrap">
+          <form th:action="@{/admin/users/{id}/reset-password(id=${a.id})}" method="post" class="inline">
+            <button class="btn small ghost" type="submit" data-confirm="Make a new password for this user?">Reset password</button></form>
+          <form th:unless="${a.id == me.id()}" th:action="@{/admin/users/{id}/active(id=${a.id})}" method="post" class="inline">
+            <input type="hidden" name="active" th:value="${!a.active}">
+            <button class="btn small ghost" type="submit" th:text="${a.active} ? 'Switch off' : 'Switch on'">Switch off</button></form>
+        </td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+<script src="/js/admin.js"></script>
+</body>
+</html>

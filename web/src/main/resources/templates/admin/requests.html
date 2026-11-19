@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Requests · ' + ${group.name})}"></head>
+<body>
+<header th:replace="~{fragments :: adminBar}"></header>
+<main class="wrap narrow admin">
+  <th:block th:replace="~{fragments :: flash}"></th:block>
+  <div class="row between">
+    <h1>Requests</h1>
+    <nav class="row small">
+      <a href="/admin/requests" th:classappend="${show != 'done'} ? 'muted'">Open</a>
+      <a href="/admin/requests?show=done" th:classappend="${show == 'done'} ? 'muted'">Done and declined</a>
+    </nav>
+  </div>
+  <p class="muted">People asking to join the group (from the "Sell with us" page) and messages sent to the group from the main site.</p>
+  <p class="muted" th:if="${requests.isEmpty()}">Nothing here.</p>
+
+  <article th:each="r : ${requests}" class="enquiry" th:id="'request-' + ${r.id}">
+    <div class="row between small">
+      <span>
+        <span th:if="${r.isJoin()}" class="badge warn">Wants to join</span>
+        <span th:unless="${r.isJoin()}" class="badge neutral">Message</span>
+        · <span th:text="${#temporals.format(r.createdAt, 'dd MMM HH:mm')}"></span>
+      </span>
+      <span th:switch="${r.status}">
+        <span th:case="'new'" class="badge neutral">New</span>
+        <span th:case="'in_progress'" class="badge warn">In progress</span>
+        <span th:case="'done'" class="badge good">Done</span>
+        <span th:case="'declined'" class="badge neutral">Declined</span>
+      </span>
+    </div>
+    <h3 class="mt"><span th:text="${r.name}">Name</span><span class="en" th:if="${r.english('name')}" th:text="${r.english('name')}"></span></h3>
+    <dl class="kv">
+      <dt>Phone</dt><dd><a th:if="${r.phone}" th:href="'tel:' + ${r.phone}" th:text="${r.phone}"></a><span th:unless="${r.phone}">—</span></dd>
+      <dt>Email</dt><dd th:text="${r.email ?: '—'}"></dd>
+      <th:block th:if="${r.isJoin()}">
+        <dt>Location</dt><dd><span th:text="${r.location ?: '—'}"></span><span class="en" th:if="${r.english('location')}" th:text="${r.english('location')}"></span></dd>
+        <dt>Language</dt><dd th:text="${r.language != null} ? ${languages[r.language]} : '—'"></dd>
+        <dt>Makes / sells</dt><dd><span th:text="${r.craft}"></span><span class="en" th:if="${r.english('craft')}" th:text="${r.english('craft')}"></span></dd>
+      </th:block>
+    </dl>
+    <div class="orig" th:if="${r.message}" th:text="${r.message}"></div>
+    <div class="orig" th:if="${r.english('message')}"><strong>In English:</strong> <span th:text="${r.english('message')}"></span></div>
+
+    <th:block th:if="${r.replySent}">
+      <p class="small muted mt" th:text="'You replied ' + ${#temporals.format(r.repliedAt, 'dd MMM HH:mm')}"></p>
+      <div class="orig" th:text="${r.replySent}"></div>
+    </th:block>
+
+    <p class="small mt" th:if="${r.sellerId}">
+      Onboarding started: <a th:href="@{/admin/sellers/{id}(id=${r.sellerId})}">open the shop</a>
+    </p>
+
+    <th:block th:if="${r.isOpen()}">
+      <form th:if="${r.hasEmail()}" th:action="@{/admin/requests/{id}/reply(id=${r.id})}" method="post" class="mt">
+        <label class="small" th:for="'reply-' + ${r.id}">Reply by email (from the group mailbox)</label>
+        <textarea th:id="'reply-' + ${r.id}" name="reply" maxlength="6000"></textarea>
+        <p class="mt"><button class="btn small" type="submit">Send reply</button></p>
+      </form>
+      <p class="hint" th:unless="${r.hasEmail()}">No email given: call or WhatsApp them.</p>
+      <div class="row mt">
+        <a th:if="${r.isJoin()}" class="btn small" th:href="@{/admin/requests/{id}/onboard(id=${r.id})}">✨ Start onboarding</a>
+        <form th:if="${r.status == 'new'}" th:action="@{/admin/requests/{id}/status(id=${r.id})}" method="post" class="inline">
+          <input type="hidden" name="status" value="in_progress"><button class="btn small ghost" type="submit">Mark in progress</button>
+        </form>
+        <form th:action="@{/admin/requests/{id}/status(id=${r.id})}" method="post" class="inline">
+          <input type="hidden" name="status" value="done"><button class="btn small ghost" type="submit">Mark done</button>
+        </form>
+        <form th:if="${r.isJoin()}" th:action="@{/admin/requests/{id}/status(id=${r.id})}" method="post" class="inline">
+          <input type="hidden" name="status" value="declined"><button class="btn small ghost" type="submit">Decline</button>
+        </form>
+      </div>
+    </th:block>
+    <form th:unless="${r.isOpen()}" th:action="@{/admin/requests/{id}/status(id=${r.id})}" method="post" class="mt">
+      <input type="hidden" name="status" value="in_progress"><button class="btn small ghost" type="submit">Reopen</button>
+    </form>
+  </article>
+</main>
+<script src="/js/admin.js"></script>
+</body>
+</html>

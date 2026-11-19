@@ -27,7 +27,8 @@
   if (input && previews) {
     input.addEventListener('change', function () {
       var files = Array.prototype.slice.call(input.files, 0, MAX_FILES);
-      previews.textContent = 'Preparing photos…';
+      var texts = document.getElementById('micText');
+      previews.textContent = (texts && texts.getAttribute('data-preparing')) || 'Preparing photos…';
       Promise.all(files.map(shrink)).then(function (small) {
         if (window.DataTransfer) {
           var dt = new DataTransfer();

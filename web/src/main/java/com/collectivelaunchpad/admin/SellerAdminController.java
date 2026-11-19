@@ -41,6 +41,7 @@ public class SellerAdminController {
         public String bio;
         public String location;
         public String whatsapp;
+        public String upiId;
         public List<ProductForm> products = new ArrayList<>();
     }
 
@@ -50,6 +51,7 @@ public class SellerAdminController {
         public String description;
         public String price;
         public String unit;
+        public String stock;
         public boolean available = true;
         public boolean remove;
     }
@@ -66,9 +68,15 @@ public class SellerAdminController {
     private final LiveCheckService liveCheck;
     private final SiteController site;
     private final TransactionTemplate tx;
+    private final com.collectivelaunchpad.domain.Repositories.AccountRepository accounts;
+    private final com.collectivelaunchpad.i18n.ContentTranslator contentTranslator;
 
     public SellerAdminController(SellerRepository sellers, ProductRepository products, OnboardingSessionRepository sessions,
-                                 LiveCheckService liveCheck, SiteController site, TransactionTemplate tx) {
+                                 LiveCheckService liveCheck, SiteController site, TransactionTemplate tx,
+                                 com.collectivelaunchpad.domain.Repositories.AccountRepository accounts,
+                                 com.collectivelaunchpad.i18n.ContentTranslator contentTranslator) {
+        this.contentTranslator = contentTranslator;
+        this.accounts = accounts;
         this.sellers = sellers;
         this.products = products;
         this.sessions = sessions;
@@ -83,6 +91,7 @@ public class SellerAdminController {
         model.addAttribute("seller", s);
         model.addAttribute("products", products.findBySellerIdOrderBySortOrderAscIdAsc(id));
         model.addAttribute("onb", sessions.findFirstBySellerIdOrderByIdDesc(id).orElse(null));
+        model.addAttribute("login", accounts.findBySellerId(id).orElse(null));
         return "admin/seller-edit";
     }
 
@@ -92,6 +101,7 @@ public class SellerAdminController {
         try {
             // All or nothing: a validation error rolls back every change in the form.
             tx.executeWithoutResult(t -> apply(seller(id), form));
+            contentTranslator.soon();
             flash.addFlashAttribute("notice", "Saved. Highlighted values are now marked as checked.");
         } catch (FormError e) {
             flash.addFlashAttribute("error", e.getMessage());
@@ -122,6 +132,7 @@ public class SellerAdminController {
         s.liveCheckDetail = "Checking…";
         sellers.save(s);
         liveCheck.checkInBackground(id);
+        contentTranslator.soon();
         flash.addFlashAttribute("notice", "Published. Checking that " + s.slug + " is live…");
         return "redirect:/admin/sellers/" + id;
     }
@@ -179,6 +190,7 @@ public class SellerAdminController {
         s.bio = optional(f.bio, "About", 1200);
         s.location = optional(f.location, "Location", 120);
         s.whatsapp = optional(f.whatsapp, "WhatsApp", 20);
+        s.upiId = optional(f.upiId, "UPI ID", 100);
         s.reviewFields = "";
         sellers.save(s);
 
@@ -208,6 +220,7 @@ public class SellerAdminController {
             p.description = orEmpty(optional(pf.description, "Description", 600));
             p.pricePaise = price(pf.price, p.name);
             p.unit = orEmpty(optional(pf.unit, "Unit", 40));
+            p.stock = stock(pf.stock, p.name);
             p.isAvailable = pf.available;
             p.needsReview = false;
             p.reviewFields = "";
@@ -228,6 +241,21 @@ public class SellerAdminController {
             return rupees.multiply(BigDecimal.valueOf(100)).setScale(0, RoundingMode.HALF_UP).longValueExact();
         } catch (NumberFormatException | ArithmeticException e) {
             throw new FormError("Price for \"" + product + "\" must be a number of rupees, like 450 or 12.50.");
+        }
+    }
+
+    private static Integer stock(String raw, String product) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            int n = Integer.parseInt(raw.strip());
+            if (n < 0 || n > 100_000) {
+                throw new NumberFormatException();
+            }
+            return n;
+        } catch (NumberFormatException e) {
+            throw new FormError("Stock for \"" + product + "\" must be a whole number, or empty for made to order.");
         }
     }
 

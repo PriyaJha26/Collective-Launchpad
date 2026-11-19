@@ -20,7 +20,7 @@ public record AppProperties(
 
     /** Used once, on first start, to create the group and its first admin. */
     public record Seed(String groupName, String groupTagline, String groupDescription, String groupLocation,
-                       String adminEmail, String adminPassword, boolean sampleShop) {}
+                       String adminEmail, String adminPhone, String adminPassword, boolean sampleShop) {}
 
     /** What the group pays each month, for the cost-per-seller figure on the dashboard (INR). */
     public record Costs(double domainPerYear, double emailPerMonth, double hostingPerMonth) {

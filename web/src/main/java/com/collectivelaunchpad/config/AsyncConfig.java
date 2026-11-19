@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
+@org.springframework.scheduling.annotation.EnableScheduling
 public class AsyncConfig {
 
     /** Background work: agent turns, enquiry drafting, emails, live checks. */

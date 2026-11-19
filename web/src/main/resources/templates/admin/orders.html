@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Orders · ' + ${group.name})}"></head>
+<body>
+<header th:replace="~{fragments :: adminBar}"></header>
+<main class="wrap admin">
+  <h1>Orders</h1>
+  <div class="panel scroll">
+    <h2>Earnings by shop</h2>
+    <p class="hint">Customers pay sellers directly. "Earned" counts orders the seller marked as paid.</p>
+    <table class="list">
+      <thead><tr><th>Shop</th><th>Earned</th><th>This month</th><th>Accepted, not paid</th><th>Orders</th><th>In progress</th></tr></thead>
+      <tbody>
+      <tr th:each="e : ${earnings}">
+        <td><a th:href="@{/admin/sellers/{id}(id=${e.seller().id})}" th:text="${e.seller().shopName}"></a></td>
+        <td th:text="${e.earnings().paidTotalLabel()}"></td>
+        <td th:text="${e.earnings().paidThisMonthLabel()}"></td>
+        <td th:text="${e.earnings().awaitingPaymentLabel()}"></td>
+        <td th:text="${e.earnings().orderCount()}"></td>
+        <td th:text="${e.earnings().activeCount()}"></td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel scroll">
+    <h2>Latest orders</h2>
+    <p class="muted" th:if="${orders.isEmpty()}">No orders yet.</p>
+    <table class="list" th:unless="${orders.isEmpty()}">
+      <thead><tr><th>#</th><th>Date</th><th>Shop</th><th>Customer</th><th>Total</th><th>Status</th><th>Payment</th></tr></thead>
+      <tbody>
+      <tr th:each="o : ${orders}">
+        <td th:text="${o.id}"></td>
+        <td class="small nowrap" th:text="${#temporals.format(o.createdAt, 'dd MMM HH:mm')}"></td>
+        <td th:text="${shops[o.sellerId].shopName}"></td>
+        <td class="small"><span th:text="${o.customerName}"></span><br><span class="muted" th:text="${o.customerPhone}"></span></td>
+        <td th:text="${o.totalLabel()}"></td>
+        <td class="small" th:text="${o.statusLabel()}"></td>
+        <td class="small"><span th:text="${o.paymentMethod == 'cod'} ? 'Cash' : 'UPI'"></span>
+          <span th:if="${o.isPaid()}" class="badge good">paid</span></td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+</body>
+</html>
