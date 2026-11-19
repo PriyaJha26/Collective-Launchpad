@@ -295,11 +295,15 @@ public class EnquiryService {
         if (!customerLang.equals(writtenIn)) {
             try {
                 translated = translator.flatten(translator.translate(java.util.Map.of("text", text), java.util.List.of(customerLang)), null);
-                forCustomer = translated.path(customerLang).asText(text);
             } catch (AgentClient.AgentException ex) {
                 log.warn("Translating the reply to enquiry {} failed: {}", enquiryId, ex.getMessage());
                 throw new InvalidEnquiry(msg.get("err.replyTranslate"));
             }
+            if (translated.path(customerLang).asText("").isBlank()) {
+                log.warn("The agent returned no {} translation for the reply to enquiry {}", customerLang, enquiryId);
+                throw new InvalidEnquiry(msg.get("err.replyTranslate"));
+            }
+            forCustomer = translated.path(customerLang).asText();
         }
         Reply r = replies.findFirstByEnquiryIdAndStatusInOrderByIdDesc(e.id, Set.of(ReplyStatus.DRAFT, ReplyStatus.APPROVED))
                 .orElseGet(() -> {

@@ -109,6 +109,18 @@ class WebIntegrationTest extends IntegrationTestBase {
         when(agent.onboardingTurn(any())).thenReturn(mapper.readTree(
                 "{\"status\":\"needs_input\",\"appended\":[],\"pending_tool_results\":[],\"question\":\"What is the price?\"}"));
         when(agent.health()).thenReturn(mapper.readTree("{\"mode\":\"mock\"}"));
+        // Like the agent's mock mode: "[hi] text".
+        when(agent.translateTo(any())).thenAnswer(inv -> {
+            com.fasterxml.jackson.databind.JsonNode req = inv.getArgument(0);
+            var out = mapper.createObjectNode();
+            out.put("source_language", "en");
+            var results = out.putObject("results");
+            req.path("targets").forEach(t -> {
+                var r = results.putObject(t.asText());
+                req.path("fields").fields().forEachRemaining(f -> r.put(f.getKey(), "[" + t.asText() + "] " + f.getValue().asText()));
+            });
+            return out;
+        });
     }
 
     static RequestPostProcessor host(String host) {
@@ -555,9 +567,9 @@ class WebIntegrationTest extends IntegrationTestBase {
         var me = as(sunita);
 
         mvc.perform(get("/seller").with(host(MAIN)).with(me)).andExpect(status().isOk())
-                .andExpect(content().string(containsString("Not live yet")));
+                .andExpect(content().string(containsString("अजून लाइव्ह नाही")));
         mvc.perform(post("/seller/shop/submit").with(host(MAIN)).with(csrf()).with(me))
-                .andExpect(flash().attribute("error", containsString("at least one product")));
+                .andExpect(flash().attribute("error", containsString("किमान एक वस्तू")));
 
         byte[] jpeg = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0, 0x10, 'J', 'F', 'I', 'F', 0, 1};
         mvc.perform(multipart("/seller/products/new").file(new MockMultipartFile("photo", "p.jpg", "image/jpeg", jpeg))
@@ -574,9 +586,12 @@ class WebIntegrationTest extends IntegrationTestBase {
                 .andExpect(flash().attribute("error", containsString("UPI ID")));
         mvc.perform(post("/seller/shop").with(host(MAIN)).with(csrf()).with(me)
                         .param("shopName", "Sunita's Pickles").param("slug", "sunita").param("upiId", "sunita@okaxis").param("language", "mr"))
-                .andExpect(flash().attribute("notice", "Saved."));
+                .andExpect(flash().attribute("notice", "जतन झाले."));
         mvc.perform(post("/seller/shop/submit").with(host(MAIN)).with(csrf()).with(me)).andExpect(status().isFound());
         assertThat(sellers.findById(shop.id).orElseThrow().status).isEqualTo(SellerStatus.PENDING_REVIEW);
+        String marathi = mvc.perform(get("/seller").with(host(MAIN)).with(me)).andReturn()
+                .getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(marathi).contains("lang=\"mr\"").contains("मंजुरीची वाट");
 
         // Hidden until the superadmin approves.
         mvc.perform(get("/").with(host("sunita." + MAIN))).andExpect(status().isNotFound());
@@ -645,15 +660,15 @@ class WebIntegrationTest extends IntegrationTestBase {
 
         // The seller accepts, the customer says they paid, the seller confirms: it counts as earned.
         mvc.perform(post("/seller/orders/" + order.id + "/accept").with(host(MAIN)).with(csrf()).with(as(meena)))
-                .andExpect(flash().attribute("notice", containsString("updated")));
+                .andExpect(flash().attribute("notice", "ऑर्डर #" + order.id + " अपडेट हो गया।"));
         mvc.perform(post("/account/orders/" + order.id + "/cancel").with(host(MAIN)).with(csrf()).with(as(ravi)))
                 .andExpect(flash().attribute("error", containsString("already accepted")));
         mvc.perform(post("/account/orders/" + order.id + "/paid").with(host(MAIN)).with(csrf()).with(as(ravi)));
         mvc.perform(get("/seller/orders").with(host(MAIN)).with(as(meena)))
-                .andExpect(content().string(containsString("Customer says paid")));
+                .andExpect(content().string(containsString("ग्राहक के अनुसार भुगतान हुआ")));
         mvc.perform(post("/seller/orders/" + order.id + "/paid").with(host(MAIN)).with(csrf()).with(as(meena)));
         mvc.perform(get("/seller").with(host(MAIN)).with(as(meena)))
-                .andExpect(content().string(containsString("Total earned ₹600")));
+                .andExpect(content().string(containsString("कुल कमाई ₹600")));
         mvc.perform(get("/admin/orders").with(host(MAIN)).with(superadmin()))
                 .andExpect(content().string(containsString("₹600")));
 
@@ -669,6 +684,40 @@ class WebIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
+    void replyIsNotSentWhenItCannotBeTranslatedForTheCustomer() throws Exception {
+        Seller s = seller("meena", SellerStatus.PUBLISHED, "x");
+        var meena = sellerLogin(s, "9000000001");
+        var ravi = accountService.registerCustomer("Ravi", "9123456780", "secret123", null);
+        mvc.perform(post("/shops/meena/message").with(host(MAIN)).with(csrf()).with(as(ravi))
+                .param("topic", "question").param("message", "Is it fresh?"));
+        Enquiry e = enquiries.findAll().get(0);
+        org.awaitility.Awaitility.await().until(() -> EnquiryStatus.DRAFTED.equals(enquiries.findById(e.id).orElseThrow().status));
+
+        org.mockito.Mockito.doReturn(mapper.readTree("{\"source_language\":\"hi\",\"results\":{}}")).when(agent).translateTo(any());
+        mvc.perform(post("/seller/messages/" + e.id + "/send").param("reply", "हाँ, आज का बना है").with(host(MAIN)).with(csrf()).with(as(meena)))
+                .andExpect(flash().attribute("error", containsString("अनुवाद नहीं हो सका")));
+        assertThat(enquiries.findById(e.id).orElseThrow().status).isEqualTo(EnquiryStatus.DRAFTED);
+        mvc.perform(get("/account/messages").with(host(MAIN)).with(as(ravi)))
+                .andExpect(content().string(not(containsString("आज का बना है"))));
+    }
+
+    @Test
+    void visitorsChooseTheirLanguageButTheSuperadminStaysInEnglish() throws Exception {
+        mvc.perform(get("/").with(host(MAIN))).andExpect(content().string(containsString("Choose your language")));
+        mvc.perform(get("/").with(host(MAIN)).header("Accept-Language", "ta-IN,ta;q=0.9"))
+                .andExpect(content().string(containsString("<html lang=\"ta\" dir=\"ltr\">")));
+        mvc.perform(get("/").with(host(MAIN)).param("lang", "ur"))
+                .andExpect(header().string("Set-Cookie", containsString("LAUNCHPAD_LANG=ur")))
+                .andExpect(content().string(containsString("<html lang=\"ur\" dir=\"rtl\">")));
+        var cookie = new jakarta.servlet.http.Cookie("LAUNCHPAD_LANG", "ur");
+        mvc.perform(get("/").with(host(MAIN)).cookie(cookie))
+                .andExpect(content().string(containsString("dir=\"rtl\"")))
+                .andExpect(content().string(not(containsString("lang-banner"))));
+        mvc.perform(get("/admin").with(host(MAIN)).with(superadmin()).cookie(cookie).param("lang", "hi"))
+                .andExpect(content().string(containsString("<html lang=\"en\"")));
+    }
+
+    @Test
     void loggedInCustomerGetsSellerReplyInTheirAccount() throws Exception {
         Seller s = seller("meena", SellerStatus.PUBLISHED, "x");
         var meena = sellerLogin(s, "9000000001");
@@ -681,16 +730,20 @@ class WebIntegrationTest extends IntegrationTestBase {
         assertThat(e.topic).isEqualTo("discount");
         org.awaitility.Awaitility.await().until(() -> EnquiryStatus.DRAFTED.equals(enquiries.findById(e.id).orElseThrow().status));
 
+        // Ravi wrote in English; Meena reads it, and her page, in Hindi.
+        org.awaitility.Awaitility.await().until(() -> enquiries.findById(e.id).orElseThrow().translations != null);
         mvc.perform(get("/seller/messages").with(host(MAIN)).with(as(meena)))
-                .andExpect(content().string(containsString("Asks for a discount")))
+                .andExpect(content().string(containsString("छूट माँगी है")))
+                .andExpect(content().string(containsString("[hi] Any discount for 5 kg?")))
                 .andExpect(content().string(containsString("Namaste Ravi")));
         Seller other = seller("other", SellerStatus.PUBLISHED, "x");
         mvc.perform(post("/seller/messages/" + e.id + "/send").param("reply", "hijack").with(host(MAIN)).with(csrf()).with(as(sellerLogin(other, "9000000003"))))
-                .andExpect(flash().attribute("error", "Enquiry not found."));
+                .andExpect(flash().attribute("error", "संदेश नहीं मिला।"));
         mvc.perform(post("/seller/messages/" + e.id + "/send").param("reply", "10% off for 5 kg!").with(host(MAIN)).with(csrf()).with(as(meena)))
-                .andExpect(flash().attribute("notice", "Reply sent."));
+                .andExpect(flash().attribute("notice", "जवाब भेज दिया गया।"));
+        // ...and Ravi gets the reply in English.
         mvc.perform(get("/account/messages").with(host(MAIN)).with(as(ravi)))
-                .andExpect(content().string(containsString("10% off for 5 kg!")));
+                .andExpect(content().string(containsString("[en] 10% off for 5 kg!")));
     }
 
     @Test

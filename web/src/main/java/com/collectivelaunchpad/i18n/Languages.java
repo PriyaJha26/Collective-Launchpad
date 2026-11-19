@@ -35,6 +35,11 @@ public final class Languages {
         return code != null && NATIVE.containsKey(code);
     }
 
+    /** Our own constant for a supported code (never the caller's string), or null. */
+    public static String canonical(String code) {
+        return code == null ? null : CODES.stream().filter(code::equals).findFirst().orElse(null);
+    }
+
     /** A supported code, or English. */
     public static String orEnglish(String code) {
         return isSupported(code) ? code : "en";

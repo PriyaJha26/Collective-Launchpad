@@ -157,8 +157,9 @@ public class SellerController {
                 }
                 sellers.save(s);
             });
-            if (OnboardingService.LANGUAGES.containsKey(language)) {
-                languages.setLocale(req, res, java.util.Locale.forLanguageTag(language));
+            String chosen = com.collectivelaunchpad.i18n.Languages.canonical(language);
+            if (chosen != null) {
+                languages.setLocale(req, res, java.util.Locale.forLanguageTag(chosen));
             }
             contentTranslator.soon();
             flash.addFlashAttribute("notice", msg.get("common.saved"));

@@ -28,7 +28,9 @@ Only Java touches the database, and only Python talks to Claude. The agent is st
 | **Seller** (one shop) | `/seller` | Add, edit or remove products (price, stock, description, photo). See and answer customer messages (Claude drafts the reply). Accept, decline and complete orders, confirm payment, see earnings. Set the UPI ID customers pay to. Set up the shop with the Claude assistant, which asks its questions in the seller's language. |
 | **Customer** | public site, `/account` | Browse every shop and product without logging in. Ask a seller a question, ask for a discount or request a custom order. Log in to order, pay the seller (cash on delivery or UPI) and see orders and replies. Any customer can also open a shop. |
 
-Everyone logs in with a **mobile number and password**; the superadmin can also use an email. Sellers can **register themselves** (`/register/seller`); their shop stays hidden until the superadmin approves it. People who need help can use the **"Sell with us" intake form** (`/join`). The intake and seller registration pages are available in 12 Indian languages; join requests in another language are translated into English for the superadmin (Claude Haiku 5.5).
+Everyone logs in with a **mobile number and password**; the superadmin can also use an email. Sellers can **register themselves** (`/register/seller`); their shop stays hidden until the superadmin approves it. People who need help can use the **"Sell with us" intake form** (`/join`).
+
+**Everyone uses the site in their own language.** Every page except the superadmin's (which stays in English) is available in English, Hindi, Marathi, Tamil, Telugu, Kannada, Malayalam, Bengali, Gujarati, Punjabi, Odia and Urdu (right-to-left). First-time visitors see a "Choose your language" banner; after that the 🌐 switcher in the top bar changes it. The choice is kept in a cookie shared by the main domain and shop subdomains, and saved to the account when logged in. What sellers write (shop name, about text, product names and descriptions) is translated automatically for each customer, with an "Original" toggle. Messages go both ways: a customer writes in their language and the seller reads it in theirs, Claude drafts the reply in the seller's language, and the customer receives it (in the app and by email) in their own. Order notes are translated the same way. Join requests also get an English version for the superadmin.
 
 **Payments go straight to the seller.** There is no payment gateway: at checkout the customer picks cash on delivery / pickup, or UPI to the seller's own UPI ID (a `upi://` link opens their UPI app with the amount filled in). The seller marks the order as paid when the money arrives; only paid orders count as earnings.
 
@@ -38,7 +40,18 @@ Everyone logs in with a **mobile number and password**; the superadmin can also 
 
 1. **Onboarding agent** (Claude Sonnet 5.5): reads product photos, handwritten price lists and dictated notes, and fills in the draft shop through tools (`set_shop_profile`, `add_product`, `update_product`, `propose_shop_address`, `ask_seller`, `submit_for_review`). It flags values it is unsure of and asks one question when something essential is missing. It cannot publish.
 2. **Enquiries:** Claude Haiku 5.5 classifies each message; Claude Sonnet 5.5 drafts a reply that quotes only catalogue prices, plus points the seller should check. Nothing is sent until the seller (or superadmin) approves it. Logged-in customers read replies in their account; others get them by email.
-3. **Translation:** join requests written in a local language get an English version for the superadmin.
+3. **Translation** (Claude Haiku 5.5, `/translate/to`): shop and product texts are translated in the background into the other 11 languages whenever they change (only changed texts are sent again) and stored with the product. Customer messages are translated for the seller and into English for the superadmin. A seller's reply is translated into the customer's language at send time, and if that fails the reply is not sent, so the customer never gets a language they did not choose. Join requests get an English version. Translations use gender-neutral wording.
+
+### Website texts
+
+The page texts live in `web/src/main/resources/i18n/messages.properties` (English) and `messages_<code>.properties` (one per language). After adding or changing English keys:
+
+```bash
+agent/.venv/bin/python scripts/translate_messages.py --check     # lists missing keys and broken placeholders
+INTERNAL_TOKEN=... agent/.venv/bin/python scripts/translate_messages.py   # fills missing keys through the running agent
+```
+
+To redo a changed text, use `--retranslate key1,key2`. `MessageBundlesTest` fails the build if a language is missing a key or a `{0}` argument.
 
 ## Run it locally
 
@@ -76,7 +89,7 @@ cd web && TEST_DB_URL=jdbc:postgresql://localhost:5432/launchpad_test mvn test  
 cd agent && .venv/bin/python -m evals.run_evals  # saved real cases against Claude (costs a few cents)
 ```
 
-The web tests cover hostname routing, the certificate check, escaping, CSRF, login and the three roles (each reaches only its own pages and data), registration, seller self-signup and approval, product management, cart and checkout (stock is never oversold and comes back when an order is declined or cancelled), payment confirmation and earnings, in-app replies, the translated intake pages, login throttling, the contact forms, upload checks, the internal token, and the rule that the agent can only change drafts.
+The web tests cover hostname routing, the certificate check, escaping, CSRF, login and the three roles (each reaches only its own pages and data), registration, seller self-signup and approval, product management, cart and checkout (stock is never oversold and comes back when an order is declined or cancelled), payment confirmation and earnings, in-app replies, the translated pages and message bundles, login throttling, the contact forms, upload checks, the internal token, and the rule that the agent can only change drafts.
 
 ## Security notes
 

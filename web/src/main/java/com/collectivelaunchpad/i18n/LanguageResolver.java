@@ -51,8 +51,8 @@ public class LanguageResolver implements LocaleResolver {
     /** ?lang=xx: remember the choice. Unsupported codes are ignored. */
     @Override
     public void setLocale(HttpServletRequest req, HttpServletResponse res, Locale locale) {
-        String code = locale == null ? null : locale.getLanguage();
-        if (!Languages.isSupported(code) || isAdminPath(req)) {
+        String code = Languages.canonical(locale == null ? null : locale.getLanguage());
+        if (code == null || isAdminPath(req)) {
             return;
         }
         remember(req, res, code);
@@ -91,7 +91,11 @@ public class LanguageResolver implements LocaleResolver {
 
     // ------------------------------------------------------------------ helpers
 
-    private void remember(HttpServletRequest req, HttpServletResponse res, String code) {
+    private void remember(HttpServletRequest req, HttpServletResponse res, String requested) {
+        String code = Languages.canonical(requested);
+        if (code == null) {
+            return;
+        }
         req.setAttribute(REQUEST_ATTRIBUTE, code);
         HttpSession session = req.getSession(false);
         if (session != null) {
@@ -120,6 +124,13 @@ public class LanguageResolver implements LocaleResolver {
         if (session != null && session.getAttribute(SESSION_ATTRIBUTE) instanceof String s && Languages.isSupported(s)) {
             return s;
         }
+        AppUser me = AppUser.from(SecurityContextHolder.getContext().getAuthentication());
+        String saved = me == null ? null : accounts.findById(me.id()).map(a -> a.language)
+                .filter(Languages::isSupported).orElse(null);
+        if (saved != null) {
+            remember(req, null, saved);
+            return saved;
+        }
         return cookie(req);
     }
 
@@ -130,7 +141,7 @@ public class LanguageResolver implements LocaleResolver {
         }
         for (Cookie c : cookies) {
             if (COOKIE.equals(c.getName()) && Languages.isSupported(c.getValue())) {
-                return c.getValue();
+                return Languages.canonical(c.getValue());
             }
         }
         return null;
