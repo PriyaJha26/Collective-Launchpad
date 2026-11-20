@@ -8,6 +8,8 @@ name: Deploy
 #   SERVER_PORT      optional, defaults to 22
 #   APP_DIR          optional, defaults to $HOME/Collective-Launchpad
 
+name: Deploy
+
 on:
   push:
     branches: [main]
@@ -20,6 +22,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
@@ -27,6 +30,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
+          passphrase: ${{ secrets.SERVER_SSH_PASSPHRASE }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           script_stop: true
           script: |
