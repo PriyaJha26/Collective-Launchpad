@@ -1,17 +1,18 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
-<head th:replace="~{fragments :: head(#{checkout.title(${cart.seller().shopNameIn(lang)})})}"></head>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{fragments :: head(#{checkout.title(${cart.seller().shopName})})}"></head>
 <body>
-<header th:replace="~{fragments :: siteBar}"></header>
+<header th:replace="~{fragments :: topBar}"></header>
 <main class="wrap narrow">
-  <h1 class="mt" th:text="#{checkout.title(${cart.seller().shopNameIn(lang)})}">Checkout</h1>
+  <p class="crumbs"><a href="/cart" th:text="#{checkout.back}">Back to cart</a></p>
+  <h1 th:text="#{checkout.title(${cart.seller().shopName})}">Checkout</h1>
   <div class="alert err" th:if="${error}" th:text="${error}"></div>
 
   <div class="panel">
     <div class="line" th:each="l : ${cart.lines()}">
       <img th:if="${l.product().imageUrl() != null}" th:src="${l.product().imageUrl()}" alt="">
       <div th:unless="${l.product().imageUrl() != null}" class="noimg"></div>
-      <div><span th:text="${l.product().nameIn(lang)}"></span><div class="small muted" th:text="${l.quantity()} + ' × ' + ${l.product().priceLabel()} + ' ' + ${l.product().unitIn(lang)}"></div></div>
+      <div><span th:text="${l.product().name}"></span><div class="small muted" th:text="${l.quantity()} + ' × ' + ${l.product().priceLabel()} + ' ' + ${l.product().unit}"></div></div>
       <strong th:text="${l.totalLabel()}"></strong>
     </div>
     <p class="total mt" th:text="#{common.total(${cart.totalLabel()})}"></p>
@@ -37,7 +38,6 @@
 
     <label for="note" th:text="#{checkout.note}">Note for the seller (optional)</label>
     <textarea id="note" name="note" maxlength="1000" th:text="${form.note()}"></textarea>
-    <p class="hint" th:text="#{common.anyLanguage}">Write in any language.</p>
 
     <p class="mt"><button class="btn big" type="submit" th:text="#{checkout.place(${cart.totalLabel()})}">Place order</button></p>
   </form>

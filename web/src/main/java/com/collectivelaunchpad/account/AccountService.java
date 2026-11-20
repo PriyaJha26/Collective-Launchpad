@@ -18,7 +18,6 @@ import com.collectivelaunchpad.domain.Repositories.SellerRepository;
 import com.collectivelaunchpad.domain.Seller;
 import com.collectivelaunchpad.enquiry.EnquiryService;
 import com.collectivelaunchpad.i18n.Msg;
-import com.collectivelaunchpad.onboarding.OnboardingService;
 
 /** Registration, login lookup and password management for all three roles. */
 @Service
@@ -32,7 +31,7 @@ public class AccountService implements UserDetailsService {
         }
     }
 
-    public record SellerSignup(String name, String phone, String password, String language, String shopName,
+    public record SellerSignup(String name, String phone, String password, String shopName,
                                String craft, String location, String whatsapp) {}
 
     private final AccountRepository accounts;
@@ -125,7 +124,6 @@ public class AccountService implements UserDetailsService {
         s.shopName = shopName;
         s.bio = craft;
         s.location = clip(in.location(), 120);
-        s.language = OnboardingService.LANGUAGES.containsKey(in.language()) ? in.language() : "hi";
         String wa = clip(in.whatsapp(), 20);
         s.whatsapp = wa != null ? wa : account.phone;
         s.registeredBy = "self";
@@ -133,7 +131,6 @@ public class AccountService implements UserDetailsService {
 
         account.role = Account.SELLER;
         account.sellerId = s.id;
-        account.language = s.language;
         return accounts.save(account);
     }
 
@@ -147,7 +144,6 @@ public class AccountService implements UserDetailsService {
         String pw = password == null || password.isBlank() ? generatePassword() : password;
         Account a = newAccount(Account.SELLER, s.name, phone, pw, null);
         a.sellerId = s.id;
-        a.language = s.language;
         accounts.save(a);
         return pw;
     }
@@ -164,7 +160,8 @@ public class AccountService implements UserDetailsService {
     @Transactional
     public void changePassword(long accountId, String current, String next) {
         Account a = accounts.findById(accountId).orElseThrow();
-        if (current == null || !encoder.matches(current, a.passwordHash)) {
+        // People who only ever signed in with Google have no password yet and set their first one.
+        if (a.hasPassword() && (current == null || !encoder.matches(current, a.passwordHash))) {
             throw new AccountException(msg.get("err.wrongPassword"));
         }
         checkPassword(next);
@@ -190,7 +187,11 @@ public class AccountService implements UserDetailsService {
             throw new AccountException(msg.get("err.enterName"));
         }
         a.name = n;
-        a.email = cleanEmail(email, a.id);
+        String e = cleanEmail(email, a.id);
+        if (e == null && a.phone == null) {
+            throw new AccountException(msg.get("err.emailNeeded"));
+        }
+        a.email = e;
         accounts.save(a);
     }
 

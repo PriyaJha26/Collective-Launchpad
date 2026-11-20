@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{fragments :: head(#{join.title} + ' · ' + ${group.name})}"></head>
 <body>
-<header th:replace="~{fragments :: siteBar}"></header>
+<header th:replace="~{fragments :: topBar}"></header>
 <main class="wrap narrow">
-  <nav th:replace="~{fragments :: langPicker}"></nav>
   <h1 th:text="#{join.title}">Sell with us</h1>
   <p th:text="#{join.intro}">Intro</p>
   <p class="small"><span th:text="#{join.self}"></span> <a href="/register/seller" th:text="#{join.selfLink}">Register</a></p>
@@ -24,14 +23,6 @@
 
     <div class="grid2">
       <div><label for="location" th:text="#{f.location}">Location</label><input id="location" name="location" type="text" maxlength="120" th:value="${form?.location()}"></div>
-      <div>
-        <label for="language" th:text="#{f.language}">Language</label>
-        <select id="language" name="language">
-          <option value="" th:text="#{f.choose}">Choose…</option>
-          <option th:each="l : ${languages}" th:value="${l.key}" th:text="${l.value}"
-                  th:selected="${form != null ? form.language() == l.key : l.key == lang and l.key != 'en'}">Hindi</option>
-        </select>
-      </div>
     </div>
 
     <label for="craft" th:text="#{f.craft}">What do you make?</label>

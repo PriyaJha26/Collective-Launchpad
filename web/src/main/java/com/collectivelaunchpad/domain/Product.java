@@ -4,12 +4,6 @@ import java.util.Arrays;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-
-import com.collectivelaunchpad.i18n.Languages;
-import com.fasterxml.jackson.databind.JsonNode;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -42,23 +36,6 @@ public class Product {
     public int sortOrder;
     /** Units in stock; null means made to order (not counted). */
     public Integer stock;
-    /** Product texts in other languages: {"hi": {"name": .., "description": .., "unit": ..}}. */
-    @JdbcTypeCode(SqlTypes.JSON)
-    public JsonNode i18n;
-    @Column(name = "i18n_source_hash")
-    public String i18nSourceHash;
-
-    public String nameIn(String lang) {
-        return Languages.pick(i18n, lang, "name", name);
-    }
-
-    public String descriptionIn(String lang) {
-        return Languages.pick(i18n, lang, "description", description);
-    }
-
-    public String unitIn(String lang) {
-        return Languages.pick(i18n, lang, "unit", unit);
-    }
 
     public boolean canBeOrdered() {
         return isAvailable && pricePaise != null && (stock == null || stock > 0);

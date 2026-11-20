@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{fragments :: head(#{nav.login} + ' · ' + ${group.name})}"></head>
 <body>
-<header th:replace="~{fragments :: siteBar}"></header>
+<header th:replace="~{fragments :: topBar}"></header>
 <main class="wrap login-box">
   <div class="panel">
     <h1 th:text="#{nav.login}">Log in</h1>
@@ -10,6 +10,14 @@
     <div class="alert err" th:if="${param.locked}" th:text="#{login.locked}">Too many wrong attempts.</div>
     <div class="alert err" th:if="${param.disabled}" th:text="#{login.disabled}">This account is switched off.</div>
     <div class="alert ok" th:if="${param.logout}" th:text="#{login.loggedOut}">You have logged out.</div>
+    <div class="alert err" th:if="${param.google != null and param.google[0] == 'admin'}" th:text="#{login.googleAdmin}"></div>
+    <div class="alert err" th:if="${param.google != null and param.google[0] == 'unverified'}" th:text="#{login.googleUnverified}"></div>
+    <div class="alert err" th:if="${param.google != null and param.google[0] == 'other'}" th:text="#{login.googleOther}"></div>
+    <div class="alert err" th:if="${param.google != null and param.google[0] == 'failed'}" th:text="#{login.googleFailed}"></div>
+    <th:block th:if="${googleLogin}">
+      <a class="btn ghost google-btn" href="/oauth2/authorization/google" th:text="#{login.google}">Continue with Google</a>
+      <p class="or-line"><span th:text="#{login.or}">or</span></p>
+    </th:block>
     <form th:action="@{/login}" method="post">
       <label for="login" th:text="#{login.id}">Mobile number or email</label>
       <input id="login" name="login" type="text" autocomplete="username" required autofocus inputmode="email">

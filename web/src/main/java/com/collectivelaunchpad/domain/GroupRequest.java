@@ -30,26 +30,11 @@ public class GroupRequest {
     public String email;
     public String phone;
     public String location;
-    public String language;
     public String craft;
     public String message;
     public String status = NEW;
     @Column(name = "seller_id")
     public Long sellerId;
-    /** English translation of the free-text fields, when the request was written in another language. */
-    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
-    @Column(name = "translation_en")
-    public com.fasterxml.jackson.databind.JsonNode translationEn;
-    @Column(name = "source_language")
-    public String sourceLanguage;
-
-    public String english(String field) {
-        if (translationEn == null || !translationEn.hasNonNull(field)) {
-            return null;
-        }
-        String t = translationEn.get(field).asText();
-        return t.isBlank() ? null : t;
-    }
 
     @Column(name = "reply_sent")
     public String replySent;

@@ -14,18 +14,10 @@ from app.claude import FALLBACK_BETA, AIError, Gateway, log_usage, text_of
 from app.schemas import (
     CLASSIFY_SCHEMA,
     DRAFT_SCHEMA,
-    LANGUAGE_NAMES,
-    TRANSLATE_SCHEMA,
-    TRANSLATE_TO_SCHEMA,
     ClassifyRequest,
     ClassifyResult,
     DraftReplyRequest,
     DraftReplyResult,
-    TranslateRequest,
-    TranslateResult,
-    TranslateToRaw,
-    TranslateToRequest,
-    TranslateToResult,
 )
 
 log = logging.getLogger("launchpad.enquiries")
@@ -33,8 +25,6 @@ log = logging.getLogger("launchpad.enquiries")
 _PROMPTS = resources.files("app").joinpath("prompts")
 CLASSIFY_PROMPT = _PROMPTS.joinpath("classify.md").read_text(encoding="utf-8")
 DRAFT_PROMPT = _PROMPTS.joinpath("draft_reply.md").read_text(encoding="utf-8")
-TRANSLATE_PROMPT = _PROMPTS.joinpath("translate.md").read_text(encoding="utf-8")
-TRANSLATE_TO_PROMPT = _PROMPTS.joinpath("translate_to.md").read_text(encoding="utf-8")
 
 
 def _structured(gateway: Gateway, label: str, model_cls: type[BaseModel], attempts: int = 2, **request) -> BaseModel:
@@ -77,45 +67,6 @@ _TOPICS = {
 }
 
 
-def translate(req: TranslateRequest, gateway: Gateway, model: str) -> TranslateResult:
-    parts = "\n".join(f'<field name="{k}">\n{v}\n</field>' for k, v in req.fields.items() if v and v.strip())
-    result = _structured(
-        gateway, "translate", TranslateResult,
-        model=model,
-        max_tokens=4000,
-        system=TRANSLATE_PROMPT,
-        messages=[{"role": "user", "content": f"Translate each field into English.\n\n{parts}"}],
-        output_config={"effort": "low", "format": {"type": "json_schema", "schema": TRANSLATE_SCHEMA}},
-    )
-    # Keep only fields that were asked for.
-    result.translations = [t for t in result.translations if t.field in req.fields]
-    return result
-
-
-def translate_to(req: TranslateToRequest, gateway: Gateway, model: str) -> TranslateToResult:
-    """Translates every field into every target language. Fields or languages Claude leaves out
-    fall back to the original text, so callers always get a complete answer."""
-    fields = {k: v for k, v in req.fields.items() if v and v.strip()}
-    targets = list(dict.fromkeys(t for t in req.targets if t in LANGUAGE_NAMES))
-    if not fields:
-        return TranslateToResult(source_language="", results={t: dict(req.fields) for t in targets})
-    parts = "\n".join(f'<field name="{k}">\n{v}\n</field>' for k, v in fields.items())
-    wanted = ", ".join(f"{LANGUAGE_NAMES[t]} ({t})" for t in targets)
-    raw = _structured(
-        gateway, "translate_to", TranslateToRaw,
-        model=model,
-        max_tokens=16000,
-        system=TRANSLATE_TO_PROMPT,
-        messages=[{"role": "user", "content": f"Target languages: {wanted}\n\n{parts}"}],
-        output_config={"effort": "low", "format": {"type": "json_schema", "schema": TRANSLATE_TO_SCHEMA}},
-    )
-    results = {t: dict(req.fields) for t in targets}
-    for item in raw.translations:
-        if item.language in results and item.field in fields and item.text.strip():
-            results[item.language][item.field] = item.text
-    return TranslateToResult(source_language=raw.source_language, results=results)
-
-
 def draft_reply(req: DraftReplyRequest, gateway: Gateway, model: str) -> DraftReplyResult:
     lines = []
     for item in req.catalogue:
@@ -124,9 +75,7 @@ def draft_reply(req: DraftReplyRequest, gateway: Gateway, model: str) -> DraftRe
         lines.append(f"- {item.name}: {price}{stock}. {item.description}".rstrip())
     catalogue = "\n".join(lines) or "(no products listed)"
     s = req.seller
-    reply_language = LANGUAGE_NAMES.get(req.reply_language, "the language the customer wrote in")
     text = (
-        f"Reply language: {reply_language}\n"
         f"Group: {req.group_name}\n"
         f"Seller: {s.name}, shop \"{s.shop_name}\"{', ' + s.location if s.location else ''}\n"
         f"About the shop: {s.bio or '-'}\n\n"

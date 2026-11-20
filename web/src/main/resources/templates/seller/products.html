@@ -1,9 +1,11 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{fragments :: head(#{seller.nav.products} + ' · ' + ${group.name})}"></head>
 <body>
-<header th:replace="~{fragments :: sellerBar}"></header>
-<main class="wrap narrow admin">
+<header th:replace="~{fragments :: topBar}"></header>
+<div class="wrap with-side">
+<aside th:replace="~{fragments :: sellerSide}"></aside>
+<main class="side-main narrow admin">
   <th:block th:replace="~{fragments :: flash}"></th:block>
   <div class="row between">
     <h1 th:text="#{seller.products.title}">My products</h1>
@@ -29,6 +31,7 @@
     </div>
   </div>
 </main>
+</div>
 <script src="/js/admin.js"></script>
 </body>
 </html>

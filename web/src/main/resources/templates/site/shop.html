@@ -1,15 +1,15 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title th:text="${shop.shopNameIn(lang)} + ' · ' + ${group.name}">Shop</title>
-  <meta name="description" th:content="${shop.bioIn(lang)}">
+  <title th:text="${shop.shopName} + ' · ' + ${group.name}">Shop</title>
+  <meta name="description" th:content="${shop.bio}">
   <meta name="robots" content="noindex" th:if="${preview}">
   <link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
-<th:block th:unless="${preview}"><header th:replace="~{fragments :: siteBar}"></header></th:block>
+<th:block th:unless="${preview}"><header th:replace="~{fragments :: topBar}"></header></th:block>
 <div class="preview-bar" th:if="${preview}">
   <div class="wrap row between">
     <span th:text="'Preview · status: ' + ${shop.status}">Preview</span>
@@ -18,9 +18,9 @@
 </div>
 <header class="shop-hero">
   <div class="wrap">
-    <a class="back" th:href="${mainUrl}" th:text="'← ' + ${group.name}">Group</a>
-    <h1 th:text="${shop.shopNameIn(lang)}">Shop</h1>
-    <p class="location" th:if="${shop.location}" th:text="'📍 ' + ${shop.locationIn(lang)}"></p>
+    <p class="crumbs"><a th:href="${mainUrl}" th:text="${group.name}">Group</a></p>
+    <h1 th:text="${shop.shopName}">Shop</h1>
+    <p class="location" th:if="${shop.location}" th:text="'📍 ' + ${shop.location}"></p>
     <div class="trust-row">
       <span class="badge good" th:text="#{shop.member(${group.name})}">Member</span>
       <span class="badge trust" th:text="'🔒 ' + ${shopHost}">secure</span>
@@ -40,13 +40,13 @@
     <div class="products">
       <article class="product" th:each="p : ${products}">
         <div class="photo">
-          <img th:if="${p.imageUrl() != null}" th:src="${p.imageUrl()}" th:alt="${p.nameIn(lang)}" loading="lazy">
+          <img th:if="${p.imageUrl() != null}" th:src="${p.imageUrl()}" th:alt="${p.name}" loading="lazy">
           <span th:unless="${p.imageUrl() != null}" aria-hidden="true">✿</span>
         </div>
         <div class="body">
-          <h3 th:text="${p.nameIn(lang)}">Product</h3>
-          <p class="small" th:if="${!#strings.isEmpty(p.description)}" th:text="${p.descriptionIn(lang)}"></p>
-          <div class="price"><span th:replace="~{fragments :: price(${p})}"></span> <span class="unit" th:if="${p.pricePaise != null}" th:text="${p.unitIn(lang)}"></span></div>
+          <h3 th:text="${p.name}">Product</h3>
+          <p class="small" th:if="${!#strings.isEmpty(p.description)}" th:text="${p.description}"></p>
+          <div class="price"><span th:replace="~{fragments :: price(${p})}"></span> <span class="unit" th:if="${p.pricePaise != null}" th:text="${p.unit}"></span></div>
           <span class="badge neutral" th:if="${preview and !p.isAvailable}">Hidden: not available</span>
           <div class="small muted"><span th:replace="~{fragments :: stock(${p})}"></span></div>
           <div class="row ask">
@@ -61,8 +61,8 @@
   <section class="block" id="about" th:if="${!#strings.isEmpty(shop.bio)}">
     <h2 th:text="#{shop.about}">About</h2>
     <div class="about">
-      <p th:text="${shop.bioIn(lang)}"></p>
-      <p class="small muted" th:text="${shop.nameIn(lang)} + ' · ' + ${group.name}"></p>
+      <p th:text="${shop.bio}"></p>
+      <p class="small muted" th:text="${shop.name} + ' · ' + ${group.name}"></p>
     </div>
   </section>
 
@@ -82,7 +82,6 @@
         <label for="message" th:text="#{common.message}">Message</label>
         <textarea id="message" name="message" maxlength="4000" required th:text="${form?.message()}"
                   th:placeholder="#{shop.messagePlaceholder}"></textarea>
-        <p class="hint" th:text="#{common.anyLanguage}">Write in any language.</p>
         <div class="hp" aria-hidden="true"><label for="website">Leave this empty</label><input id="website" type="text" name="website" tabindex="-1" autocomplete="off"></div>
         <p class="mt"><button class="btn" type="submit" th:text="#{common.sendMessage}">Send message</button></p>
       </form>
@@ -93,7 +92,7 @@
 
 <footer class="site">
   <div class="wrap">
-    <span th:text="#{shop.footer(${shop.shopNameIn(lang)})}">Shop is one of many small sellers sharing one website:</span>
+    <span th:text="#{shop.footer(${shop.shopName})}">Shop is one of many small sellers sharing one website:</span>
     <a th:href="${mainUrl}" th:text="${group.name}"></a>
   </div>
 </footer>

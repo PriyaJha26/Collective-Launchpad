@@ -38,21 +38,6 @@ public class OnboardingService {
 
     private static final Logger log = LoggerFactory.getLogger(OnboardingService.class);
 
-    public static final Map<String, String> LANGUAGES = java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>() {{
-        put("hi", "Hindi");
-        put("mr", "Marathi");
-        put("ta", "Tamil");
-        put("te", "Telugu");
-        put("kn", "Kannada");
-        put("ml", "Malayalam");
-        put("bn", "Bengali");
-        put("gu", "Gujarati");
-        put("pa", "Punjabi");
-        put("or", "Odia");
-        put("ur", "Urdu");
-        put("en", "English");
-    }});
-
     /** The admin did something that is not possible right now; message is shown in the form. */
     public static class OnboardingException extends RuntimeException {
         public OnboardingException(String message) {
@@ -60,7 +45,7 @@ public class OnboardingService {
         }
     }
 
-    public record NewSeller(String name, String language, String whatsapp, String notes, List<MultipartFile> photos) {}
+    public record NewSeller(String name, String whatsapp, String notes, List<MultipartFile> photos) {}
 
     private final SellerRepository sellers;
     private final OnboardingSessionRepository sessions;
@@ -95,12 +80,10 @@ public class OnboardingService {
             throw new OnboardingException("Please enter the seller's name (up to 80 characters).");
         }
         checkInput(in.notes(), in.photos());
-        String language = LANGUAGES.containsKey(in.language()) ? in.language() : "hi";
 
         Seller seller = new Seller();
         seller.groupId = group.id;
         seller.name = name;
-        seller.language = language;
         seller.whatsapp = clip(in.whatsapp(), 20);
         sellers.save(seller);
         try {
@@ -134,27 +117,24 @@ public class OnboardingService {
     private OnboardingSession startSession(Group group, Seller seller, String rawNotes, List<MultipartFile> files, boolean bySeller) {
         String notes = rawNotes == null ? "" : rawNotes.strip();
         List<UploadService.Photo> photos = uploads.storeAll(seller.id, files);
-        String language = LANGUAGES.getOrDefault(seller.language, "Hindi");
         String audience = bySeller
-                ? "You are talking directly to the seller, not the group admin. Write ask_seller questions in "
-                  + language + ", in very simple words."
+                ? "You are talking directly to the seller, not the group admin. Write ask_seller questions in simple English."
                 : "You are talking to the group admin, who relays questions to the seller.";
 
         ArrayNode input = mapper.createArrayNode();
         input.add(text("""
                 Seller's name: %s
-                Seller's language: %s
                 WhatsApp number: %s
                 Group: %s%s
                 Shop addresses look like <address>.%s
                 %s
 
-                Notes (typed or dictated, may be in any language):
+                Notes (typed or dictated):
                 <notes>
                 %s
                 </notes>
                 %s""".formatted(
-                seller.name, language, seller.whatsapp == null || seller.whatsapp.isBlank() ? "not given" : "given",
+                seller.name, seller.whatsapp == null || seller.whatsapp.isBlank() ? "not given" : "given",
                 group.name, group.location == null || group.location.isBlank() ? "" : " (" + group.location + ")",
                 urls.domain(), audience, notes.isEmpty() ? "(none)" : notes,
                 photos.isEmpty() ? "No photos." : photos.size() + " photo(s) follow, each labelled with its id.")));
@@ -247,7 +227,6 @@ public class OnboardingService {
         ObjectNode request = mapper.createObjectNode();
         request.put("session_id", session.id);
         request.put("seller_id", seller.id);
-        request.put("language", seller.language);
         try {
             request.set("history", expand(session.messages));
             request.set("input", expand(session.inflightInput));

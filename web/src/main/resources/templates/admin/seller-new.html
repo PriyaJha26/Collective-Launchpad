@@ -20,15 +20,10 @@
       </div>
       <div>
         <label for="whatsapp">WhatsApp number (optional)</label>
-        <input id="whatsapp" name="whatsapp" type="tel" maxlength="20" placeholder="98xxxxxxxx" th:value="${form != null ? form[2] : ''}">
+        <input id="whatsapp" name="whatsapp" type="tel" maxlength="20" placeholder="98xxxxxxxx" th:value="${form != null ? form[1] : ''}">
       </div>
     </div>
 
-    <label for="language">Seller's language</label>
-    <select id="language" name="language">
-      <option th:each="l : ${languages}" th:value="${l.key}" th:text="${l.value}"
-              th:selected="${form != null ? form[1] == l.key : l.key == 'hi'}">Hindi</option>
-    </select>
 
     <label for="photos">Photos of products and the price list <span class="muted small" th:text="'(up to ' + ${maxPhotos} + ')'"></span></label>
     <input id="photos" name="photos" type="file" accept="image/jpeg,image/png,image/webp" multiple>
@@ -40,7 +35,7 @@
       <button type="button" class="btn secondary small" id="micBtn">🎤 Start listening</button>
       <span id="micState" class="small muted"></span>
     </div>
-    <textarea id="notes" name="notes" class="tall" maxlength="8000" placeholder="e.g. Meena makes besan ladoo (₹300 per kg) and cakes to order…" th:text="${form != null ? form[3] : ''}"></textarea>
+    <textarea id="notes" name="notes" class="tall" maxlength="8000" placeholder="e.g. Meena makes besan ladoo (₹300 per kg) and cakes to order…" th:text="${form != null ? form[2] : ''}"></textarea>
 
     <p class="mt"><button class="btn big" type="submit" id="submitBtn">✨ Draft the shop</button></p>
   </form>

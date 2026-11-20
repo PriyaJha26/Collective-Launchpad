@@ -24,13 +24,11 @@ Only Java touches the database, and only Python talks to Claude. The agent is st
 
 | Role | Where | Can do |
 |---|---|---|
-| **Superadmin** (runs the site) | `/admin` | See everything. Add sellers for people who can't use a phone well (Claude builds the shop from photos), give them a login, approve self-registered shops, publish or hide shops, see all orders and each shop's earnings, manage users and reset passwords, answer join requests (shown with an English translation) and messages. |
-| **Seller** (one shop) | `/seller` | Add, edit or remove products (price, stock, description, photo). See and answer customer messages (Claude drafts the reply). Accept, decline and complete orders, confirm payment, see earnings. Set the UPI ID customers pay to. Set up the shop with the Claude assistant, which asks its questions in the seller's language. |
+| **Superadmin** (runs the site) | `/admin` | See everything. Add sellers for people who can't use a phone well (Claude builds the shop from photos), give them a login, approve self-registered shops, publish or hide shops, see all orders and each shop's earnings, manage users and reset passwords, answer join requests and messages. |
+| **Seller** (one shop) | `/seller` | Add, edit or remove products (price, stock, description, photo). See and answer customer messages (Claude drafts the reply). Accept, decline and complete orders, confirm payment, see earnings. Set the UPI ID customers pay to. Set up the shop with the Claude assistant. |
 | **Customer** | public site, `/account` | Browse every shop and product without logging in. Ask a seller a question, ask for a discount or request a custom order. Log in to order, pay the seller (cash on delivery or UPI) and see orders and replies. Any customer can also open a shop. |
 
-Everyone logs in with a **mobile number and password**; the superadmin can also use an email. Sellers can **register themselves** (`/register/seller`); their shop stays hidden until the superadmin approves it. People who need help can use the **"Sell with us" intake form** (`/join`).
-
-**Everyone uses the site in their own language.** Every page except the superadmin's (which stays in English) is available in English, Hindi, Marathi, Tamil, Telugu, Kannada, Malayalam, Bengali, Gujarati, Punjabi, Odia and Urdu (right-to-left). First-time visitors see a "Choose your language" banner; after that the 🌐 switcher in the top bar changes it. The choice is kept in a cookie shared by the main domain and shop subdomains, and saved to the account when logged in. What sellers write (shop name, about text, product names and descriptions) is translated automatically for each customer, with an "Original" toggle. Messages go both ways: a customer writes in their language and the seller reads it in theirs, Claude drafts the reply in the seller's language, and the customer receives it (in the app and by email) in their own. Order notes are translated the same way. Join requests also get an English version for the superadmin.
+Everyone logs in with a **mobile number and password**; the superadmin can also use an email. Customers and sellers can also use **"Continue with Google"** (see [Sign in with Google](#sign-in-with-google)). Sellers can **register themselves** (`/register/seller`); their shop stays hidden until the superadmin approves it. People who need help can use the **"Sell with us" intake form** (`/join`).
 
 **Payments go straight to the seller.** There is no payment gateway: at checkout the customer picks cash on delivery / pickup, or UPI to the seller's own UPI ID (a `upi://` link opens their UPI app with the amount filled in). The seller marks the order as paid when the money arrives; only paid orders count as earnings.
 
@@ -40,18 +38,10 @@ Everyone logs in with a **mobile number and password**; the superadmin can also 
 
 1. **Onboarding agent** (Claude Sonnet 5.5): reads product photos, handwritten price lists and dictated notes, and fills in the draft shop through tools (`set_shop_profile`, `add_product`, `update_product`, `propose_shop_address`, `ask_seller`, `submit_for_review`). It flags values it is unsure of and asks one question when something essential is missing. It cannot publish.
 2. **Enquiries:** Claude Haiku 5.5 classifies each message; Claude Sonnet 5.5 drafts a reply that quotes only catalogue prices, plus points the seller should check. Nothing is sent until the seller (or superadmin) approves it. Logged-in customers read replies in their account; others get them by email.
-3. **Translation** (Claude Haiku 5.5, `/translate/to`): shop and product texts are translated in the background into the other 11 languages whenever they change (only changed texts are sent again) and stored with the product. Customer messages are translated for the seller and into English for the superadmin. A seller's reply is translated into the customer's language at send time, and if that fails the reply is not sent, so the customer never gets a language they did not choose. Join requests get an English version. Translations use gender-neutral wording.
 
 ### Website texts
 
-The page texts live in `web/src/main/resources/i18n/messages.properties` (English) and `messages_<code>.properties` (one per language). After adding or changing English keys:
-
-```bash
-agent/.venv/bin/python scripts/translate_messages.py --check     # lists missing keys and broken placeholders
-INTERNAL_TOKEN=... agent/.venv/bin/python scripts/translate_messages.py   # fills missing keys through the running agent
-```
-
-To redo a changed text, use `--retranslate key1,key2`. `MessageBundlesTest` fails the build if a language is missing a key or a `{0}` argument.
+The page texts live in `web/src/main/resources/i18n/messages.properties`. Texts with `{0}` arguments are MessageFormat patterns.
 
 ## Run it locally
 
@@ -67,6 +57,19 @@ ADMIN_PASSWORD=choose-a-password ./run.sh
 - Shops: http://sample.localhost:8080/ (browsers resolve `*.localhost` themselves)
 
 `run.sh` creates the `launchpad` database if it is missing, a Python virtualenv for the agent, and a sample shop. Without a Claude key, the agent runs in **mock mode**. Mock answers are scripted and marked `[MOCK]`, but they go through the real tool loop and the real Java endpoints. To use Claude, put `ANTHROPIC_API_KEY=...` in `.env.local`. Email is simulated until SMTP is configured; simulated emails are listed on the dashboard.
+
+## Sign in with Google
+
+Optional. The "Continue with Google" button on the login and register pages only appears when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set (in `.env.local` locally, `.env` on the server).
+
+1. In [Google Cloud Console](https://console.cloud.google.com/), create or pick a project.
+2. **APIs & Services > OAuth consent screen**: choose *External*, fill in the app name, support email and the authorised domain (your `DOMAIN`). The `openid`, `email` and `profile` scopes are enough; they need no Google review. While the app is in *Testing*, add the Google accounts that may sign in as test users, or publish it.
+3. **APIs & Services > Credentials > Create credentials > OAuth client ID**, type *Web application*. Add these authorised redirect URIs:
+   - `http://localhost:8080/login/oauth2/code/google` (local)
+   - `https://<DOMAIN>/login/oauth2/code/google` (server)
+4. Copy the client ID and secret into `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` and restart.
+
+How accounts are matched: a Google account that signed in before goes to the same account. Otherwise, an account with the same email (Google must have verified it) is linked to it, so a seller can add their Gmail under "My details" and then use Google. Anyone else gets a new customer account, which can open a shop later as usual. The superadmin cannot sign in with Google. People who only use Google have no password; they can set one on their account page.
 
 ## Deploy on the GoDaddy Docker server
 
@@ -89,7 +92,7 @@ cd web && TEST_DB_URL=jdbc:postgresql://localhost:5432/launchpad_test mvn test  
 cd agent && .venv/bin/python -m evals.run_evals  # saved real cases against Claude (costs a few cents)
 ```
 
-The web tests cover hostname routing, the certificate check, escaping, CSRF, login and the three roles (each reaches only its own pages and data), registration, seller self-signup and approval, product management, cart and checkout (stock is never oversold and comes back when an order is declined or cancelled), payment confirmation and earnings, in-app replies, the translated pages and message bundles, login throttling, the contact forms, upload checks, the internal token, and the rule that the agent can only change drafts.
+The web tests cover hostname routing, the certificate check, escaping, CSRF, login and the three roles (each reaches only its own pages and data), registration, seller self-signup and approval, product management, cart and checkout (stock is never oversold and comes back when an order is declined or cancelled), payment confirmation and earnings, in-app replies, login throttling, Google sign-in (linking, new accounts, the superadmin refusal, setting a first password), the contact forms, upload checks, the internal token, and the rule that the agent can only change drafts.
 
 ## Security notes
 

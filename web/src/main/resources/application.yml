@@ -54,8 +54,10 @@ launchpad:
   internal-token: ${INTERNAL_TOKEN:}
   agent-url: ${AGENT_URL:http://localhost:8000}
   mail-from: ${MAIL_FROM:hello@localhost}
-  # Translate live shops' texts into all 12 languages in the background (Claude Haiku, once per change).
-  translate-content: ${TRANSLATE_CONTENT:true}
+  # "Continue with Google" (customers and sellers). Leave blank to hide the button. See README.
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
+    client-secret: ${GOOGLE_CLIENT_SECRET:}
   seed:
     group-name: ${GROUP_NAME:Crafts of India}
     group-tagline: ${GROUP_TAGLINE:Handmade by artisans and self-help groups across India}

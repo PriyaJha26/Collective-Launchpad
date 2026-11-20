@@ -5,7 +5,6 @@ import java.time.OffsetDateTime;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import com.collectivelaunchpad.i18n.Languages;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 
@@ -40,17 +39,4 @@ public class Reply {
     public String sendError;
     @Column(name = "created_at", insertable = false, updatable = false)
     public OffsetDateTime createdAt;
-    /** The language the reply was written in (the seller's or the admin's). */
-    public String language;
-    /** The reply in other languages, at least the customer's: {"ta": "..."}. */
-    @JdbcTypeCode(SqlTypes.JSON)
-    public JsonNode translations;
-
-    public String bodyIn(String lang) {
-        return lang != null && lang.equals(language) ? body : Languages.pick(translations, lang, body);
-    }
-
-    public boolean isTranslatedFor(String lang) {
-        return !bodyIn(lang).equals(body);
-    }
 }

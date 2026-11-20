@@ -69,13 +69,10 @@ public class SellerAdminController {
     private final SiteController site;
     private final TransactionTemplate tx;
     private final com.collectivelaunchpad.domain.Repositories.AccountRepository accounts;
-    private final com.collectivelaunchpad.i18n.ContentTranslator contentTranslator;
 
     public SellerAdminController(SellerRepository sellers, ProductRepository products, OnboardingSessionRepository sessions,
                                  LiveCheckService liveCheck, SiteController site, TransactionTemplate tx,
-                                 com.collectivelaunchpad.domain.Repositories.AccountRepository accounts,
-                                 com.collectivelaunchpad.i18n.ContentTranslator contentTranslator) {
-        this.contentTranslator = contentTranslator;
+                                 com.collectivelaunchpad.domain.Repositories.AccountRepository accounts) {
         this.accounts = accounts;
         this.sellers = sellers;
         this.products = products;
@@ -101,7 +98,6 @@ public class SellerAdminController {
         try {
             // All or nothing: a validation error rolls back every change in the form.
             tx.executeWithoutResult(t -> apply(seller(id), form));
-            contentTranslator.soon();
             flash.addFlashAttribute("notice", "Saved. Highlighted values are now marked as checked.");
         } catch (FormError e) {
             flash.addFlashAttribute("error", e.getMessage());
@@ -132,7 +128,6 @@ public class SellerAdminController {
         s.liveCheckDetail = "Checking…";
         sellers.save(s);
         liveCheck.checkInBackground(id);
-        contentTranslator.soon();
         flash.addFlashAttribute("notice", "Published. Checking that " + s.slug + " is live…");
         return "redirect:/admin/sellers/" + id;
     }

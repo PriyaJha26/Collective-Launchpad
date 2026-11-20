@@ -79,7 +79,7 @@ def main():
         ("photos", ("ladoo.jpg", photo((190, 120, 40), "Besan ladoo 300/kg"), "image/jpeg")),
         ("photos", ("cake.jpg", photo((90, 50, 30), "Chocolate cake"), "image/jpeg")),
     ]
-    data = {"name": name, "language": "hi", "whatsapp": "",
+    data = {"name": name, "whatsapp": "",
             "notes": "She makes besan ladoo, 300 rupees per kg, and chocolate cakes to order. Lives in Wardha."}
     r = admin.post(f"/admin/sellers/new?_csrf={csrf(page)}", data=data, files=files)
     m = re.search(r"/admin/onboarding/(\d+)", str(r.url))

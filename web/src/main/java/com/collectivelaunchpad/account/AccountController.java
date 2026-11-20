@@ -2,12 +2,7 @@ package com.collectivelaunchpad.account;
 
 import java.util.List;
 
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
-import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,7 +21,6 @@ import com.collectivelaunchpad.domain.Repositories.OrderRepository;
 import com.collectivelaunchpad.domain.Repositories.SellerRepository;
 import com.collectivelaunchpad.domain.Seller;
 import com.collectivelaunchpad.enquiry.EnquiryService;
-import com.collectivelaunchpad.i18n.LanguageResolver;
 import com.collectivelaunchpad.i18n.Msg;
 import com.collectivelaunchpad.shop.OrderService;
 import com.collectivelaunchpad.site.RateLimiter;
@@ -46,14 +40,13 @@ public class AccountController {
     private final OrderService orderService;
     private final EnquiryService enquiries;
     private final RateLimiter rateLimiter;
-    private final LanguageResolver languages;
+    private final SessionLogin sessionLogin;
     private final Msg msg;
-    private final SecurityContextRepository contextRepo = new HttpSessionSecurityContextRepository();
 
     public AccountController(AccountService accounts, AccountRepository accountRepo, GroupRepository groups,
                              SellerRepository sellers, OrderRepository orders, OrderService orderService,
-                             EnquiryService enquiries, RateLimiter rateLimiter, LanguageResolver languages, Msg msg) {
-        this.languages = languages;
+                             EnquiryService enquiries, RateLimiter rateLimiter, SessionLogin sessionLogin, Msg msg) {
+        this.sessionLogin = sessionLogin;
         this.msg = msg;
         this.accounts = accounts;
         this.accountRepo = accountRepo;
@@ -96,14 +89,13 @@ public class AccountController {
         }
     }
 
-    // ------------------------------------------------------------------ seller registration (in their language)
+    // ------------------------------------------------------------------ seller registration
 
     @GetMapping("/register/seller")
     public String sellerForm(@AuthenticationPrincipal AppUser me, Model model) {
         if (me != null && me.isSeller()) {
             return "redirect:/seller";
         }
-        model.addAttribute("languages", com.collectivelaunchpad.i18n.Languages.NATIVE);
         return "account/register-seller";
     }
 
@@ -111,7 +103,7 @@ public class AccountController {
     public String registerSeller(HttpServletRequest req, HttpServletResponse res, Model model,
                                  @AuthenticationPrincipal AppUser me,
                                  @RequestParam(defaultValue = "") String name, @RequestParam(defaultValue = "") String phone,
-                                 @RequestParam(defaultValue = "") String password, @RequestParam(defaultValue = "") String language,
+                                 @RequestParam(defaultValue = "") String password,
                                  @RequestParam(defaultValue = "") String shopName, @RequestParam(defaultValue = "") String craft,
                                  @RequestParam(defaultValue = "") String location, @RequestParam(defaultValue = "") String whatsapp) {
         if (!rateLimiter.tryAcquire("register:" + req.getRemoteAddr())) {
@@ -121,12 +113,12 @@ public class AccountController {
         try {
             Group group = groups.findFirstByOrderByIdAsc().orElseThrow();
             Account a = accounts.registerSeller(group,
-                    new AccountService.SellerSignup(name, phone, password, language, shopName, craft, location, whatsapp), me);
+                    new AccountService.SellerSignup(name, phone, password, shopName, craft, location, whatsapp), me);
             logIn(a, req, res); // refresh the session so the new SELLER role applies at once
             return "redirect:/seller?welcome";
         } catch (AccountService.AccountException e) {
             model.addAttribute("error", e.getMessage());
-            model.addAttribute("form", new AccountService.SellerSignup(name, phone, "", language, shopName, craft, location, whatsapp));
+            model.addAttribute("form", new AccountService.SellerSignup(name, phone, "", shopName, craft, location, whatsapp));
             return sellerForm(me, model);
         }
     }
@@ -173,7 +165,6 @@ public class AccountController {
         model.addAttribute("shops", shopNames(mine));
         var items = orderService.itemsFor(mine);
         model.addAttribute("items", items);
-        model.addAttribute("itemNames", orderService.itemNames(items.values().stream().flatMap(List::stream).toList()));
         return "account/orders";
     }
 
@@ -185,7 +176,6 @@ public class AccountController {
         model.addAttribute("seller", s);
         var items = orderService.items(id);
         model.addAttribute("items", items);
-        model.addAttribute("itemNames", orderService.itemNames(items));
         model.addAttribute("upiLink", Order.UPI.equals(o.paymentMethod) ? OrderService.upiLink(s, o) : null);
         return "account/order";
     }
@@ -232,17 +222,7 @@ public class AccountController {
 
     /** Logs a just-registered account in, with a fresh session id. */
     private void logIn(Account a, HttpServletRequest req, HttpServletResponse res) {
-        AppUser user = AppUser.of(a);
-        var auth = UsernamePasswordAuthenticationToken.authenticated(user, null, user.getAuthorities());
-        SecurityContext ctx = SecurityContextHolder.createEmptyContext();
-        ctx.setAuthentication(auth);
-        SecurityContextHolder.setContext(ctx);
-        if (req.getSession(false) != null) {
-            req.changeSessionId();
-        }
-        contextRepo.saveContext(ctx, req, res);
-        accounts.recordLogin(a.id);
-        languages.onLogin(req, res, a.id);
+        sessionLogin.logIn(a, req, res);
     }
 
     /** Return to checkout (or wherever login was asked for) after signing up. */

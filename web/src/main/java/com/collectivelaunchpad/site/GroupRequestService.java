@@ -13,7 +13,6 @@ import com.collectivelaunchpad.domain.GroupRequest;
 import com.collectivelaunchpad.domain.Repositories.GroupRequestRepository;
 import com.collectivelaunchpad.enquiry.EnquiryService;
 import com.collectivelaunchpad.mail.MailService;
-import com.collectivelaunchpad.onboarding.OnboardingService;
 
 /** Join requests and questions sent to the group admin from the main site. */
 @Service
@@ -22,7 +21,7 @@ public class GroupRequestService {
     private static final Logger log = LoggerFactory.getLogger(GroupRequestService.class);
     public static final Set<String> OPEN = Set.of(GroupRequest.NEW, GroupRequest.IN_PROGRESS);
 
-    public record Form(String name, String email, String phone, String location, String language, String craft, String message) {}
+    public record Form(String name, String email, String phone, String location, String craft, String message) {}
 
     public static class InvalidRequest extends RuntimeException {
         public InvalidRequest(String message) {
@@ -33,19 +32,14 @@ public class GroupRequestService {
     private final GroupRequestRepository requests;
     private final MailService mail;
     private final ExecutorService background;
-    private final com.collectivelaunchpad.agentclient.AgentClient agent;
-    private final com.fasterxml.jackson.databind.ObjectMapper mapper;
     private final com.collectivelaunchpad.i18n.Msg msg;
 
     public GroupRequestService(GroupRequestRepository requests, MailService mail, ExecutorService backgroundExecutor,
-                               com.collectivelaunchpad.agentclient.AgentClient agent,
-                               com.fasterxml.jackson.databind.ObjectMapper mapper, com.collectivelaunchpad.i18n.Msg msg) {
+                               com.collectivelaunchpad.i18n.Msg msg) {
         this.msg = msg;
         this.requests = requests;
         this.mail = mail;
         this.background = backgroundExecutor;
-        this.agent = agent;
-        this.mapper = mapper;
     }
 
     public GroupRequest submit(String kind, Form f) {
@@ -56,7 +50,6 @@ public class GroupRequestService {
         r.email = clip(f.email(), 200);
         r.phone = clip(f.phone(), 20);
         r.location = clip(f.location(), 120);
-        r.language = f.language() != null && OnboardingService.LANGUAGES.containsKey(f.language()) ? f.language() : null;
         r.craft = clip(f.craft(), 300);
         r.message = clip(f.message(), 4000);
 
@@ -80,45 +73,8 @@ public class GroupRequestService {
         }
         requests.save(r);
         long id = r.id;
-        background.submit(() -> {
-            translate(id);
-            notifyAdmin(id);
-        });
+        background.submit(() -> notifyAdmin(id));
         return r;
-    }
-
-    /** Requests written in a local language get an English translation for the superadmin. */
-    void translate(long id) {
-        GroupRequest r = requests.findById(id).orElse(null);
-        if (r == null) {
-            return;
-        }
-        var fields = mapper.createObjectNode();
-        java.util.Map<String, String> source = new java.util.LinkedHashMap<>();
-        source.put("name", r.name);
-        source.put("location", r.location);
-        source.put("craft", r.craft);
-        source.put("message", r.message);
-        source.forEach((k, v) -> {
-            if (v != null && !v.chars().allMatch(c -> c < 128)) {
-                fields.put(k, v);
-            }
-        });
-        if (fields.isEmpty()) {
-            return; // all English / Latin letters already
-        }
-        try {
-            var req = mapper.createObjectNode();
-            req.set("fields", fields);
-            var res = agent.translate(req);
-            var out = mapper.createObjectNode();
-            res.path("translations").forEach(t -> out.put(t.path("field").asText(), t.path("english").asText()));
-            r.translationEn = out;
-            r.sourceLanguage = res.path("source_language").asText(null);
-            requests.save(r);
-        } catch (Exception e) {
-            log.warn("Could not translate group request {}: {}", id, e.getMessage());
-        }
     }
 
     private void notifyAdmin(long id) {
@@ -132,16 +88,10 @@ public class GroupRequestService {
             body.append("Email: ").append(r.email == null ? "-" : r.email).append('\n');
             if (r.isJoin()) {
                 body.append("Location: ").append(r.location == null ? "-" : r.location).append('\n');
-                body.append("Language: ").append(r.language == null ? "-" : OnboardingService.LANGUAGES.get(r.language)).append('\n');
                 body.append("Makes / sells: ").append(r.craft).append('\n');
             }
             if (r.message != null) {
                 body.append('\n').append(r.message).append('\n');
-            }
-            if (r.translationEn != null && !r.translationEn.isEmpty()) {
-                body.append("\nIn English:\n");
-                r.translationEn.fields().forEachRemaining(e ->
-                        body.append("  ").append(e.getKey()).append(": ").append(e.getValue().asText()).append('\n'));
             }
             body.append("\nOpen \"Requests\" in the admin dashboard to reply or start onboarding.");
             mail.send(mail.from(), r.email, subject, body.toString());

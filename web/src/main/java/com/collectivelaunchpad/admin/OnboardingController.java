@@ -46,12 +46,11 @@ public class OnboardingController {
     /** "Add a seller"; with ?request=<id>, pre-filled from a join request sent through the website. */
     @GetMapping("/admin/sellers/new")
     public String form(@RequestParam(name = "request", required = false) Long requestId, Model model) {
-        model.addAttribute("languages", OnboardingService.LANGUAGES);
         model.addAttribute("maxPhotos", UploadService.MAX_FILES_PER_REQUEST);
         if (requestId != null && !model.containsAttribute("form")) {
             GroupRequest r = requests.find(requestId);
             model.addAttribute("form", new String[] {
-                    r.name, r.language == null ? "hi" : r.language, r.phone == null ? "" : r.phone,
+                    r.name, r.phone == null ? "" : r.phone,
                     GroupRequestService.onboardingNotes(r)});
         }
         model.addAttribute("requestId", requestId);
@@ -60,7 +59,6 @@ public class OnboardingController {
 
     @PostMapping("/admin/sellers/new")
     public String create(@RequestParam(defaultValue = "") String name,
-                         @RequestParam(defaultValue = "hi") String language,
                          @RequestParam(defaultValue = "") String whatsapp,
                          @RequestParam(defaultValue = "") String notes,
                          @RequestParam(name = "requestId", required = false) Long requestId,
@@ -70,14 +68,14 @@ public class OnboardingController {
             // Load the group here rather than as a @ModelAttribute parameter: that would bind the
             // form's "name" field onto the group.
             Group group = groups.findFirstByOrderByIdAsc().orElseThrow();
-            OnboardingSession s = onboarding.start(group, new OnboardingService.NewSeller(name, language, whatsapp, notes, photos));
+            OnboardingSession s = onboarding.start(group, new OnboardingService.NewSeller(name, whatsapp, notes, photos));
             if (requestId != null) {
                 requests.linkSeller(requestId, s.sellerId);
             }
             return "redirect:/admin/onboarding/" + s.id;
         } catch (OnboardingException | UploadService.UploadException e) {
             model.addAttribute("error", e.getMessage());
-            model.addAttribute("form", new String[] {name, language, whatsapp, notes});
+            model.addAttribute("form", new String[] {name, whatsapp, notes});
             return form(requestId, model);
         }
     }

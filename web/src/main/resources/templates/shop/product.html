@@ -1,23 +1,23 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
-<head th:replace="~{fragments :: head(${product.nameIn(lang)} + ' · ' + ${seller.shopNameIn(lang)})}"></head>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{fragments :: head(${product.name} + ' · ' + ${seller.shopName})}"></head>
 <body>
-<header th:replace="~{fragments :: siteBar}"></header>
+<header th:replace="~{fragments :: topBar}"></header>
 <main class="wrap">
   <th:block th:replace="~{fragments :: flash}"></th:block>
-  <p class="small mt"><a href="/products" th:text="'← ' + #{products.title}">← All products</a></p>
+  <p class="crumbs"><a href="/products" th:text="#{products.title}">All products</a></p>
   <div class="product-page">
     <div class="photo">
-      <img th:if="${product.imageUrl() != null}" th:src="${product.imageUrl()}" th:alt="${product.nameIn(lang)}">
+      <img th:if="${product.imageUrl() != null}" th:src="${product.imageUrl()}" th:alt="${product.name}">
       <span th:unless="${product.imageUrl() != null}" aria-hidden="true">✿</span>
     </div>
     <div>
-      <h1 th:text="${product.nameIn(lang)}">Product</h1>
-      <p class="small"><span th:text="#{product.by}">by</span> <a th:href="${urls.shopUrl(seller.slug)}" th:text="${seller.shopNameIn(lang)}">Shop</a>
-        <span class="muted" th:if="${!#strings.isEmpty(seller.location)}" th:text="' · ' + ${seller.locationIn(lang)}"></span></p>
-      <p class="price-big"><span th:replace="~{fragments :: price(${product})}"></span> <span class="unit" th:if="${product.pricePaise != null}" th:text="${product.unitIn(lang)}"></span></p>
+      <h1 th:text="${product.name}">Product</h1>
+      <p class="small"><span th:text="#{product.by}">by</span> <a th:href="${urls.shopUrl(seller.slug)}" th:text="${seller.shopName}">Shop</a>
+        <span class="muted" th:if="${!#strings.isEmpty(seller.location)}" th:text="' · ' + ${seller.location}"></span></p>
+      <p class="price-big"><span th:replace="~{fragments :: price(${product})}"></span> <span class="unit" th:if="${product.pricePaise != null}" th:text="${product.unit}"></span></p>
       <p class="muted"><span th:replace="~{fragments :: stock(${product})}"></span></p>
-      <p th:if="${!#strings.isEmpty(product.description)}" th:text="${product.descriptionIn(lang)}"></p>
+      <p th:if="${!#strings.isEmpty(product.description)}" th:text="${product.description}"></p>
 
       <form th:if="${product.canBeOrdered()}" th:action="@{/cart/add}" method="post" class="row">
         <input type="hidden" name="productId" th:value="${product.id}">

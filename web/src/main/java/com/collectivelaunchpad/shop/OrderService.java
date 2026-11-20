@@ -8,14 +8,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import java.util.concurrent.ExecutorService;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.collectivelaunchpad.account.AppUser;
 import com.collectivelaunchpad.domain.Account;
@@ -29,10 +25,7 @@ import com.collectivelaunchpad.domain.Repositories.OrderRepository;
 import com.collectivelaunchpad.domain.Repositories.ProductRepository;
 import com.collectivelaunchpad.domain.Repositories.SellerRepository;
 import com.collectivelaunchpad.domain.Seller;
-import com.collectivelaunchpad.i18n.Languages;
 import com.collectivelaunchpad.i18n.Msg;
-import com.collectivelaunchpad.i18n.SellerLanguages;
-import com.collectivelaunchpad.i18n.TranslationService;
 import com.collectivelaunchpad.mail.MailService;
 
 /**
@@ -100,13 +93,9 @@ public class OrderService {
     private final AccountRepository accounts;
     private final MailService mail;
     private final Msg msg;
-    private final TranslationService translator;
-    private final SellerLanguages sellerLanguages;
-    private final ExecutorService background;
 
     public OrderService(OrderRepository orders, OrderItemRepository items, ProductRepository products,
-                        SellerRepository sellers, AccountRepository accounts, MailService mail, Msg msg,
-                        TranslationService translator, SellerLanguages sellerLanguages, ExecutorService backgroundExecutor) {
+                        SellerRepository sellers, AccountRepository accounts, MailService mail, Msg msg) {
         this.orders = orders;
         this.items = items;
         this.products = products;
@@ -114,9 +103,6 @@ public class OrderService {
         this.accounts = accounts;
         this.mail = mail;
         this.msg = msg;
-        this.translator = translator;
-        this.sellerLanguages = sellerLanguages;
-        this.background = backgroundExecutor;
     }
 
     // ------------------------------------------------------------------ cart
@@ -162,7 +148,6 @@ public class OrderService {
         if (Order.UPI.equals(payment) && (seller.upiId == null || seller.upiId.isBlank())) {
             throw new OrderException(msg.get("err.noUpi"));
         }
-        String lang = Msg.lang();
 
         Order o = new Order();
         o.sellerId = seller.id;
@@ -172,17 +157,16 @@ public class OrderService {
         o.delivery = delivery;
         o.note = clip(f.note(), 1000);
         o.paymentMethod = payment;
-        o.customerLanguage = lang;
         orders.save(o);
 
         long total = 0;
         for (Line l : sc.lines()) {
             Product p = products.findById(l.product().id).orElseThrow();
             if (!p.isAvailable || p.pricePaise == null) {
-                throw new OrderException(msg.get("err.itemUnavailable", p.nameIn(lang)));
+                throw new OrderException(msg.get("err.itemUnavailable", p.name));
             }
             if (p.stock != null && products.takeStock(p.id, l.quantity()) == 0) {
-                throw new OrderException(msg.get("err.onlyLeft", p.stock, p.nameIn(lang)));
+                throw new OrderException(msg.get("err.onlyLeft", p.stock, p.name));
             }
             OrderItem it = new OrderItem();
             it.orderId = o.id;
@@ -198,10 +182,6 @@ public class OrderService {
         orders.save(o);
         sc.lines().forEach(l -> cart.remove(l.product().id));
         notifySeller(o, seller, "email.newOrder", o.id, Money.label(total));
-        if (o.note != null) {
-            long id = o.id;
-            afterCommit(() -> translateNote(id, true, sellerLanguages.of(seller)));
-        }
         return o;
     }
 
@@ -219,13 +199,7 @@ public class OrderService {
                 requireStatus(o, Order.PLACED, Order.ACCEPTED);
                 o.status = Order.DECLINED;
                 o.sellerNote = clip(note, 500);
-                o.sellerNoteTranslations = null;
                 returnStock(o);
-                if (o.sellerNote != null) {
-                    long id = o.id;
-                    String customerLang = customerLanguage(o);
-                    afterCommit(() -> translateNote(id, false, customerLang));
-                }
             }
             case "ready" -> {
                 requireStatus(o, Order.ACCEPTED);
@@ -310,12 +284,7 @@ public class OrderService {
         return out;
     }
 
-    public ItemNames itemNames(java.util.Collection<OrderItem> list) {
-        var ids = list.stream().map(it -> it.productId).filter(Objects::nonNull).distinct().toList();
-        Map<Long, Product> byId = new java.util.HashMap<>();
-        products.findAllById(ids).forEach(p -> byId.put(p.id, p));
-        return new ItemNames(byId);
-    }
+
 
     public Earnings earnings(long sellerId) {
         List<Order> all = orders.findBySellerIdOrderByCreatedAtDesc(sellerId);
@@ -366,63 +335,18 @@ public class OrderService {
         throw new OrderException(msg.get("err.orderAlready", status));
     }
 
-    /** Emails the seller in their own language. */
     private void notifySeller(Order o, Seller s, String subjectKey, Object... args) {
-        String lang = sellerLanguages.of(s);
-        String subject = msg.in(lang, subjectKey, args);
+        String subject = msg.get(subjectKey, args);
         accounts.findBySellerId(s.id).map(a -> a.email).filter(e -> e != null && !e.isBlank())
                 .ifPresent(email -> mail.send(email, null, subject,
-                        subject + "\n\n" + msg.in(lang, "email.sellerOrderLink", "/seller/orders/" + o.id)));
+                        subject + "\n\n" + msg.get("email.sellerOrderLink", "/seller/orders/" + o.id)));
     }
 
-    /** Emails the customer in their own language. */
     private void notifyCustomer(Order o) {
-        String lang = customerLanguage(o);
-        String subject = msg.in(lang, "email.orderUpdate", o.id, msg.in(lang, "order.status." + o.status));
+        String subject = msg.get("email.orderUpdate", o.id, msg.get("order.status." + o.status));
         accounts.findById(o.customerId).map((Account a) -> a.email).filter(e -> e != null && !e.isBlank())
                 .ifPresent(email -> mail.send(email, null, subject,
-                        subject + "\n\n" + msg.in(lang, "email.customerOrderLink", "/account/orders/" + o.id)));
-    }
-
-    private String customerLanguage(Order o) {
-        return accounts.findById(o.customerId).map(a -> a.language).filter(Languages::isSupported)
-                .orElse(Languages.orEnglish(o.customerLanguage));
-    }
-
-    /** The customer's note for the seller, or the seller's note for the customer, in the reader's language. */
-    private void translateNote(long orderId, boolean customerNote, String target) {
-        background.submit(() -> {
-            try {
-                Order o = orders.findById(orderId).orElse(null);
-                String text = o == null ? null : customerNote ? o.note : o.sellerNote;
-                if (text == null || (customerNote && target.equals(o.customerLanguage))) {
-                    return;
-                }
-                var result = translator.translate(Map.of("text", text), List.of(target));
-                Order fresh = orders.findById(orderId).orElseThrow();
-                if (customerNote) {
-                    fresh.noteTranslations = translator.flatten(result, fresh.noteTranslations);
-                } else {
-                    fresh.sellerNoteTranslations = translator.flatten(result, fresh.sellerNoteTranslations);
-                }
-                orders.save(fresh);
-            } catch (Exception e) {
-                log.warn("Translating the note of order {} failed: {}", orderId, e.getMessage());
-            }
-        });
-    }
-
-    private static void afterCommit(Runnable r) {
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    r.run();
-                }
-            });
-        } else {
-            r.run();
-        }
+                        subject + "\n\n" + msg.get("email.customerOrderLink", "/account/orders/" + o.id)));
     }
 
     private static String enc(String s) {

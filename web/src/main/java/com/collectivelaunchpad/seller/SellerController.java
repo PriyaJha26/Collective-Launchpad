@@ -16,9 +16,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-
 import com.collectivelaunchpad.account.AppUser;
 import com.collectivelaunchpad.admin.OnboardingController;
 import com.collectivelaunchpad.domain.Entities.EnquiryStatus;
@@ -36,8 +33,6 @@ import com.collectivelaunchpad.domain.Repositories.ProductRepository;
 import com.collectivelaunchpad.domain.Repositories.SellerRepository;
 import com.collectivelaunchpad.domain.Seller;
 import com.collectivelaunchpad.enquiry.EnquiryService;
-import com.collectivelaunchpad.i18n.ContentTranslator;
-import com.collectivelaunchpad.i18n.LanguageResolver;
 import com.collectivelaunchpad.i18n.Msg;
 import com.collectivelaunchpad.onboarding.OnboardingService;
 import com.collectivelaunchpad.shop.OrderService;
@@ -69,17 +64,12 @@ public class SellerController {
     private final UploadService uploads;
     private final TransactionTemplate tx;
     private final Msg msg;
-    private final ContentTranslator contentTranslator;
-    private final LanguageResolver languages;
 
     public SellerController(SellerRepository sellers, ProductRepository products, OrderRepository orders,
                             EnquiryRepository enquiryRepo, OnboardingSessionRepository sessions, GroupRepository groups,
                             OrderService orderService, EnquiryService enquiries, OnboardingService onboarding,
-                            UploadService uploads, TransactionTemplate tx, Msg msg, ContentTranslator contentTranslator,
-                            LanguageResolver languages) {
+                            UploadService uploads, TransactionTemplate tx, Msg msg) {
         this.msg = msg;
-        this.contentTranslator = contentTranslator;
-        this.languages = languages;
         this.sellers = sellers;
         this.products = products;
         this.orders = orders;
@@ -118,16 +108,14 @@ public class SellerController {
     @GetMapping("/seller/shop")
     public String shop(@AuthenticationPrincipal AppUser me, Model model) {
         model.addAttribute("seller", seller(me));
-        model.addAttribute("languages", com.collectivelaunchpad.i18n.Languages.NATIVE);
         return "seller/shop";
     }
 
     @PostMapping("/seller/shop")
     public String saveShop(@AuthenticationPrincipal AppUser me, RedirectAttributes flash,
-                           HttpServletRequest req, HttpServletResponse res,
                            @RequestParam(defaultValue = "") String shopName, @RequestParam(defaultValue = "") String bio,
                            @RequestParam(defaultValue = "") String location, @RequestParam(defaultValue = "") String whatsapp,
-                           @RequestParam(defaultValue = "") String upiId, @RequestParam(defaultValue = "") String language,
+                           @RequestParam(defaultValue = "") String upiId,
                            @RequestParam(defaultValue = "") String slug) {
         try {
             tx.executeWithoutResult(t -> {
@@ -141,9 +129,6 @@ public class SellerController {
                     throw new FormError(msg.get("err.upi"));
                 }
                 s.upiId = upi;
-                if (OnboardingService.LANGUAGES.containsKey(language)) {
-                    s.language = language;
-                }
                 // The web address is fixed once the shop is live, so links keep working.
                 if (!s.isPublished() && !slug.isBlank()) {
                     String sl = SlugRules.normalize(slug);
@@ -157,11 +142,6 @@ public class SellerController {
                 }
                 sellers.save(s);
             });
-            String chosen = com.collectivelaunchpad.i18n.Languages.canonical(language);
-            if (chosen != null) {
-                languages.setLocale(req, res, java.util.Locale.forLanguageTag(chosen));
-            }
-            contentTranslator.soon();
             flash.addFlashAttribute("notice", msg.get("common.saved"));
         } catch (FormError e) {
             flash.addFlashAttribute("error", e.getMessage());
@@ -250,7 +230,6 @@ public class SellerController {
                 p.sortOrder = (int) products.countBySellerId(s.id);
             }
             products.save(p);
-            contentTranslator.soon();
             flash.addFlashAttribute("notice", msg.get("seller.product.saved", p.name));
             return "redirect:/seller/products";
         } catch (FormError | UploadService.UploadException e) {
@@ -312,23 +291,15 @@ public class SellerController {
     @GetMapping("/seller/messages")
     public String messages(@AuthenticationPrincipal AppUser me, @RequestParam(defaultValue = "open") String show, Model model) {
         Seller s = seller(me);
-        String lang = Msg.lang();
         List<MessageRow> rows = enquiries.forSeller(s.id).stream()
                 .filter(e -> "done".equals(show) != e.isOpen())
                 .map(e -> new MessageRow(e, enquiries.currentDraft(e.id), enquiries.lastSent(e.id)))
                 .toList();
-        boolean translating = false;
-        for (MessageRow r : rows) {
-            if (r.enquiry().translations != null && r.enquiry().needsTranslationFor(lang)) {
-                enquiries.translateInBackground(r.enquiry(), lang);
-                translating = true;
-            }
-        }
         model.addAttribute("seller", s);
         model.addAttribute("rows", rows);
         model.addAttribute("show", show);
-        model.addAttribute("waiting", translating
-                || rows.stream().anyMatch(r -> r.enquiry().isOpen() && r.draft() == null && r.enquiry().aiError == null));
+        model.addAttribute("waiting",
+                rows.stream().anyMatch(r -> r.enquiry().isOpen() && r.draft() == null && r.enquiry().aiError == null));
         return "seller/messages";
     }
 

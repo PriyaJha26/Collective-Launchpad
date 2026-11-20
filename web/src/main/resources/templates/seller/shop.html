@@ -1,9 +1,11 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{fragments :: head(#{seller.nav.settings} + ' · ' + ${group.name})}"></head>
 <body>
-<header th:replace="~{fragments :: sellerBar}"></header>
-<main class="wrap narrow admin">
+<header th:replace="~{fragments :: topBar}"></header>
+<div class="wrap with-side">
+<aside th:replace="~{fragments :: sellerSide}"></aside>
+<main class="side-main narrow admin">
   <th:block th:replace="~{fragments :: flash}"></th:block>
   <h1 th:text="#{seller.nav.settings}">Shop settings</h1>
   <form th:action="@{/seller/shop}" method="post" class="panel">
@@ -19,7 +21,6 @@
 
     <label for="bio" th:text="#{seller.shop.bio}">About your shop</label>
     <textarea id="bio" name="bio" maxlength="1200" th:text="${seller.bio}"></textarea>
-    <p class="hint" th:text="#{seller.product.translatedHint}">Write in your own language. Customers see it translated into theirs.</p>
 
     <div class="grid2">
       <div><label for="location" th:text="#{f.location}">Village / town and district</label><input id="location" name="location" type="text" maxlength="120" th:value="${seller.location}"></div>
@@ -30,14 +31,9 @@
     <input id="upiId" name="upiId" type="text" maxlength="100" placeholder="meena@okaxis" th:value="${seller.upiId}">
     <p class="hint" th:text="#{seller.shop.upiHint}">Find it in your UPI app.</p>
 
-    <label for="language" th:text="#{seller.shop.language}">Your language</label>
-    <select id="language" name="language">
-      <option th:each="l : ${languages}" th:value="${l.key}" th:text="${l.value}" th:selected="${lang == l.key}">Hindi</option>
-    </select>
-    <p class="hint" th:text="#{seller.shop.languageHint}">Your dashboard, customer messages and reply drafts are shown in this language.</p>
-
     <p class="mt"><button class="btn" type="submit" th:text="#{common.save}">Save</button></p>
   </form>
 </main>
+</div>
 </body>
 </html>

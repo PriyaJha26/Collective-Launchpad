@@ -22,7 +22,6 @@ import org.testcontainers.containers.PostgreSQLContainer;
         "ADMIN_EMAIL=admin@example.test",
         "ADMIN_PASSWORD=correct-horse-battery",
         "SEED_SAMPLE_SHOP=false",
-        "TRANSLATE_CONTENT=false",
 })
 abstract class IntegrationTestBase {
 

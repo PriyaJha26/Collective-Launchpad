@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{fragments :: head(${group.name})}"></head>
 <body>
-<header th:replace="~{fragments :: siteBar}"></header>
+<header th:replace="~{fragments :: topBar}"></header>
 <main class="wrap">
   <section class="home-hero">
     <h1 th:text="${group.name}">Group</h1>
@@ -24,8 +24,8 @@
     <div class="cards">
       <a class="card-link" th:each="s : ${shops}" th:href="${urls.shopUrl(s.slug)}">
         <div class="body">
-          <h3 th:text="${s.shopNameIn(lang)}">Shop</h3>
-          <p class="small muted" th:if="${s.location}" th:text="${s.locationIn(lang)}"></p>
+          <h3 th:text="${s.shopName}">Shop</h3>
+          <p class="small muted" th:if="${s.location}" th:text="${s.location}"></p>
           <div class="addr" th:text="${urls.shopHost(s.slug)}"></div>
         </div>
       </a>

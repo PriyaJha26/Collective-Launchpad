@@ -1,13 +1,12 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
-<head th:replace="~{fragments :: head(#{message.title(${seller.shopNameIn(lang)})})}"></head>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{fragments :: head(#{message.title(${seller.shopName})})}"></head>
 <body>
-<header th:replace="~{fragments :: siteBar}"></header>
+<header th:replace="~{fragments :: topBar}"></header>
 <main class="wrap narrow">
   <th:block th:replace="~{fragments :: flash}"></th:block>
-  <h1 class="mt" th:text="#{message.title(${seller.shopNameIn(lang)})}">Message</h1>
-  <div class="alert ok" th:if="${param.sent}" th:text="#{shop.message.sent}">Message sent.</div>
-  <p class="muted" th:if="${product != null}" th:text="#{shop.message.about(${product.nameIn(lang)})} + ' (' + (${product.pricePaise == null} ? #{product.askPrice} : ${product.priceLabel()}) + ')'"></p>
+  <h1 class="mt" th:text="#{message.title(${seller.shopName})}">Message</h1>
+  <p class="muted" th:if="${product != null}" th:text="#{shop.message.about(${product.name})} + ' (' + (${product.pricePaise == null} ? #{product.askPrice} : ${product.priceLabel()}) + ')'"></p>
 
   <form th:action="@{/shops/{s}/message(s=${seller.slug})}" method="post" class="panel">
     <input type="hidden" name="product" th:if="${product != null}" th:value="${product.id}">
@@ -30,10 +29,9 @@
 
     <label for="message" th:text="#{common.message}">Message</label>
     <textarea id="message" name="message" maxlength="4000" required th:text="${form != null ? form[3] : ''}"></textarea>
-    <p class="hint" th:text="#{common.anyLanguage}">Write in any language.</p>
     <p class="mt"><button class="btn" type="submit" th:text="#{common.send}">Send</button></p>
   </form>
-  <p class="small"><a th:href="${urls.shopUrl(seller.slug)}" th:text="'← ' + #{message.back}">← Back to the shop</a></p>
+  <p class="crumbs"><a th:href="${urls.shopUrl(seller.slug)}" th:text="#{message.back}">Back to the shop</a></p>
 </main>
 </body>
 </html>

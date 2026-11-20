@@ -1,5 +1,6 @@
 package com.collectivelaunchpad.shop;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -62,23 +63,30 @@ public class CatalogController {
     // ------------------------------------------------------------------ browsing
 
     @GetMapping("/products")
-    public String products(@RequestParam(defaultValue = "") String q, @RequestParam(required = false) Long shop, Model model) {
+    public String products(@RequestParam(defaultValue = "") String q, @RequestParam(required = false) Long shop,
+                           @RequestParam(defaultValue = "false") boolean stock,
+                           @RequestParam(defaultValue = "") String sort, Model model) {
         List<Seller> live = sellers.findByStatusOrderByShopNameAsc(SellerStatus.PUBLISHED);
         Map<Long, Seller> byId = live.stream().collect(Collectors.toMap(s -> s.id, Function.identity()));
         List<Long> ids = shop != null && byId.containsKey(shop) ? List.of(shop) : List.copyOf(byId.keySet());
         String needle = q.strip().toLowerCase(Locale.ROOT);
-        String lang = Msg.lang();
-        List<Product> list = ids.isEmpty() ? List.of() : products
-                .findBySellerIdInAndIsAvailableTrueOrderBySellerIdAscSortOrderAscIdAsc(ids).stream()
+        Comparator<Product> order = switch (sort) {
+            case "price-low" -> Comparator.comparing(p -> p.pricePaise == null ? Long.MAX_VALUE : p.pricePaise);
+            case "price-high" -> Comparator.comparing((Product p) -> p.pricePaise == null ? 0L : p.pricePaise).reversed();
+            default -> null;
+        };
+        var list = (ids.isEmpty() ? List.<Product>of() : products
+                .findBySellerIdInAndIsAvailableTrueOrderBySellerIdAscSortOrderAscIdAsc(ids)).stream()
+                .filter(p -> !stock || p.canBeOrdered())
                 .filter(p -> needle.isEmpty() || contains(p.name, needle) || contains(p.description, needle)
-                        || contains(p.nameIn(lang), needle) || contains(p.descriptionIn(lang), needle)
-                        || contains(byId.get(p.sellerId).shopName, needle) || contains(byId.get(p.sellerId).shopNameIn(lang), needle))
-                .toList();
-        model.addAttribute("products", list);
+                        || contains(byId.get(p.sellerId).shopName, needle));
+        model.addAttribute("products", order == null ? list.toList() : list.sorted(order).toList());
         model.addAttribute("shopsById", byId);
         model.addAttribute("shops", live);
         model.addAttribute("q", q);
         model.addAttribute("shop", shop);
+        model.addAttribute("stock", stock);
+        model.addAttribute("sort", sort);
         return "shop/products";
     }
 
@@ -119,7 +127,7 @@ public class CatalogController {
         if (product != null) {
             var p = products.findByIdAndSellerId(product, s.id);
             if (p.isPresent()) {
-                text = msg.get("shop.message.about", p.get().nameIn(Msg.lang())) + "\n\n" + message;
+                text = msg.get("shop.message.about", p.get().name) + "\n\n" + message;
             }
         }
         try {
@@ -155,7 +163,7 @@ public class CatalogController {
             return "redirect:/p/" + productId;
         }
         Cart.of(session).add(productId, Math.min(Math.max(quantity, 1), Cart.MAX_QTY));
-        flash.addFlashAttribute("notice", msg.get("cart.added", p.nameIn(Msg.lang())));
+        flash.addFlashAttribute("notice", msg.get("cart.added", p.name));
         return "redirect:/cart";
     }
 

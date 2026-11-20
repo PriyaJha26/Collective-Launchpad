@@ -26,11 +26,14 @@ public class Account {
     public String phone;
     /** Lowercase. */
     public String email;
+    /** Null for people who only sign in with Google. */
     @Column(name = "password_hash")
     public String passwordHash;
+    /** The Google account id, once they have signed in with Google. */
+    @Column(name = "google_sub")
+    public String googleSub;
     @Column(name = "seller_id")
     public Long sellerId;
-    public String language;
     public boolean active = true;
     @Column(name = "created_at", insertable = false, updatable = false)
     public OffsetDateTime createdAt;
@@ -43,6 +46,10 @@ public class Account {
 
     public boolean isSeller() {
         return SELLER.equals(role);
+    }
+
+    public boolean hasPassword() {
+        return passwordHash != null;
     }
 
     /** What to show as the login name. */

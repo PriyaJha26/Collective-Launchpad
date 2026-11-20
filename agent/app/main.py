@@ -16,11 +16,6 @@ from app.schemas import (
     DraftReplyResult,
     OnboardingTurnRequest,
     OnboardingTurnResponse,
-    LANGUAGE_NAMES,
-    TranslateRequest,
-    TranslateResult,
-    TranslateToRequest,
-    TranslateToResult,
 )
 from app.tools import WebTools
 
@@ -77,27 +72,5 @@ def classify(req: ClassifyRequest, gw: Gateway = Depends(gateway)) -> ClassifyRe
 def draft_reply(req: DraftReplyRequest, gw: Gateway = Depends(gateway)) -> DraftReplyResult:
     try:
         return enquiries.draft_reply(req, gw, settings.draft_model)
-    except AIError as e:
-        raise HTTPException(status_code=502, detail=str(e)) from e
-
-
-@app.post("/translate", response_model=TranslateResult, dependencies=[Depends(require_token)])
-def translate(req: TranslateRequest, gw: Gateway = Depends(gateway)) -> TranslateResult:
-    if not req.fields or len(req.fields) > 20 or sum(len(v) for v in req.fields.values()) > 20000:
-        raise HTTPException(status_code=400, detail="send 1-20 fields, up to 20,000 characters in total")
-    try:
-        return enquiries.translate(req, gw, settings.classify_model)
-    except AIError as e:
-        raise HTTPException(status_code=502, detail=str(e)) from e
-
-
-@app.post("/translate/to", response_model=TranslateToResult, dependencies=[Depends(require_token)])
-def translate_to(req: TranslateToRequest, gw: Gateway = Depends(gateway)) -> TranslateToResult:
-    if not req.fields or len(req.fields) > 20 or sum(len(v) for v in req.fields.values()) > 20000:
-        raise HTTPException(status_code=400, detail="send 1-20 fields, up to 20,000 characters in total")
-    if not req.targets or len(req.targets) > len(LANGUAGE_NAMES) or any(t not in LANGUAGE_NAMES for t in req.targets):
-        raise HTTPException(status_code=400, detail=f"targets must be 1-{len(LANGUAGE_NAMES)} of: {', '.join(LANGUAGE_NAMES)}")
-    try:
-        return enquiries.translate_to(req, gw, settings.classify_model)
     except AIError as e:
         raise HTTPException(status_code=502, detail=str(e)) from e

@@ -20,6 +20,8 @@ public final class Repositories {
 
         Optional<Account> findByPhone(String phone);
 
+        Optional<Account> findByGoogleSub(String googleSub);
+
         Optional<Account> findBySellerId(Long sellerId);
 
         List<Account> findAllByOrderByCreatedAtDesc();

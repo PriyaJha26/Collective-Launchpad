@@ -38,7 +38,6 @@ public class GroupContactController {
     @GetMapping("/join")
     public String joinForm(HttpServletRequest req, Model model) {
         model.addAttribute("group", groups.findFirstByOrderByIdAsc().orElseThrow());
-        model.addAttribute("languages", com.collectivelaunchpad.i18n.Languages.NATIVE);
         model.addAttribute("sent", req.getParameter("sent") != null);
         return "site/join";
     }
@@ -47,9 +46,9 @@ public class GroupContactController {
     public String join(HttpServletRequest req, HttpServletResponse res, Model model,
                        @RequestParam(defaultValue = "") String name, @RequestParam(defaultValue = "") String phone,
                        @RequestParam(defaultValue = "") String email, @RequestParam(defaultValue = "") String location,
-                       @RequestParam(defaultValue = "") String language, @RequestParam(defaultValue = "") String craft,
+                       @RequestParam(defaultValue = "") String craft,
                        @RequestParam(defaultValue = "") String message, @RequestParam(defaultValue = "") String website) {
-        var form = new GroupRequestService.Form(name, email, phone, location, language, craft, message);
+        var form = new GroupRequestService.Form(name, email, phone, location, craft, message);
         String error = handle(GroupRequest.JOIN, form, website, req, res);
         if (error == null) {
             return "redirect:/join?sent=1";
@@ -65,7 +64,7 @@ public class GroupContactController {
                             @RequestParam(defaultValue = "") String name, @RequestParam(defaultValue = "") String phone,
                             @RequestParam(defaultValue = "") String email, @RequestParam(defaultValue = "") String message,
                             @RequestParam(defaultValue = "") String website) {
-        var form = new GroupRequestService.Form(name, email, phone, null, null, null, message);
+        var form = new GroupRequestService.Form(name, email, phone, null, null, message);
         String error = handle(GroupRequest.QUESTION, form, website, req, res);
         if (error == null) {
             return "redirect:/?sent=1#contact";

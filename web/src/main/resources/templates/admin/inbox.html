@@ -40,7 +40,6 @@
       <span th:if="${r.enquiry().customerPhone}" th:text="' · ☎ ' + ${r.enquiry().customerPhone}"></span>
     </p>
     <div class="orig" th:text="${r.enquiry().message}"></div>
-    <span class="en" th:if="${r.enquiry().isTranslatedFor('en')}" th:text="${r.enquiry().messageIn('en')}"></span>
 
     <th:block th:if="${r.enquiry().isOpen()}">
       <p class="muted row" th:if="${r.draft() == null and r.enquiry().aiError == null}"><span class="spinner"></span> The assistant is drafting a reply…</p>
@@ -55,8 +54,6 @@
       <form th:if="${r.enquiry().hasEmail()}" th:action="@{/admin/enquiries/{id}/send(id=${r.enquiry().id})}" method="post">
         <label class="small" th:text="${r.draft() != null} ? 'Reply (drafted by the assistant, edit freely)' : 'Write a reply'">Reply</label>
         <textarea name="reply" class="tall" maxlength="6000" th:text="${r.draft() != null} ? ${r.draft().body} : ''"></textarea>
-        <p class="hint" th:if="${r.enquiry().customerLanguage != null and r.enquiry().customerLanguage != 'en'}"
-           th:text="'The draft is in the seller''s language. Whatever you send is translated into the customer''s language (' + ${r.enquiry().customerLanguage} + ').'"></p>
         <div class="row mt">
           <button class="btn" type="submit" data-confirm="Send this reply to the customer?">Approve and send</button>
         </div>
@@ -75,10 +72,6 @@
     <th:block th:if="${r.sent() != null}">
       <p class="small muted mt" th:text="'Reply sent ' + ${#temporals.format(r.sent().sentAt, 'dd MMM HH:mm')}"></p>
       <div class="orig" th:text="${r.sent().body}"></div>
-      <p class="small muted" th:if="${r.enquiry().customerLanguage != null and r.sent().isTranslatedFor(r.enquiry().customerLanguage)}"
-         th:text="'Sent to the customer in their language (' + ${r.enquiry().customerLanguage} + '):'"></p>
-      <div class="orig" th:if="${r.enquiry().customerLanguage != null and r.sent().isTranslatedFor(r.enquiry().customerLanguage)}"
-           th:text="${r.sent().bodyIn(r.enquiry().customerLanguage)}"></div>
     </th:block>
   </article>
 </main>

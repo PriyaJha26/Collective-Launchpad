@@ -59,15 +59,6 @@ public class AgentClient {
         return post("/enquiries/draft-reply", request);
     }
 
-    public JsonNode translate(JsonNode request) {
-        return post("/translate", request);
-    }
-
-    /** {"fields": {k: v}, "targets": ["hi", ...]} -> {"source_language": .., "results": {lang: {k: text}}}. */
-    public JsonNode translateTo(JsonNode request) {
-        return post("/translate/to", request);
-    }
-
     public JsonNode health() {
         return http.get().uri("/health").retrieve().body(JsonNode.class);
     }

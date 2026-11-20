@@ -2,12 +2,6 @@ package com.collectivelaunchpad.domain;
 
 import java.time.OffsetDateTime;
 
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-
-import com.collectivelaunchpad.i18n.Languages;
-import com.fasterxml.jackson.databind.JsonNode;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -62,25 +56,6 @@ public class Order {
     public OffsetDateTime createdAt;
     @Column(name = "updated_at")
     public OffsetDateTime updatedAt = OffsetDateTime.now();
-    /** The website language the customer used when ordering. */
-    @Column(name = "customer_language")
-    public String customerLanguage;
-    /** The customer's note in other languages: {"mr": "..."}. */
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "note_translations")
-    public JsonNode noteTranslations;
-    /** The seller's note (e.g. why they declined) in other languages. */
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "seller_note_translations")
-    public JsonNode sellerNoteTranslations;
-
-    public String noteIn(String lang) {
-        return note == null || (lang != null && lang.equals(customerLanguage)) ? note : Languages.pick(noteTranslations, lang, note);
-    }
-
-    public String sellerNoteIn(String lang) {
-        return sellerNote == null ? null : Languages.pick(sellerNoteTranslations, lang, sellerNote);
-    }
 
     @PreUpdate
     void touch() {

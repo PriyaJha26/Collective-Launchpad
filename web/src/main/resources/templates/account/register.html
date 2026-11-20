@@ -1,13 +1,17 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{fragments :: head(#{register.title} + ' · ' + ${group.name})}"></head>
 <body>
-<header th:replace="~{fragments :: siteBar}"></header>
+<header th:replace="~{fragments :: topBar}"></header>
 <main class="wrap login-box">
   <div class="panel">
     <h1 th:text="#{register.title}">Create an account</h1>
     <p class="muted" th:text="#{register.intro}">To order and to see replies from sellers. Browsing needs no account.</p>
     <div class="alert err" th:if="${error}" th:text="${error}"></div>
+    <th:block th:if="${googleLogin}">
+      <a class="btn ghost google-btn" href="/oauth2/authorization/google" th:text="#{login.google}">Continue with Google</a>
+      <p class="or-line"><span th:text="#{login.or}">or</span></p>
+    </th:block>
     <form th:action="@{/register(next=${param.next})}" method="post">
       <label for="name" th:text="#{common.yourName}">Your name</label>
       <input id="name" name="name" type="text" maxlength="80" required th:value="${form != null ? form[0] : ''}">

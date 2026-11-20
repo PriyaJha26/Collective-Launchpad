@@ -93,7 +93,6 @@ public class Bootstrap implements ApplicationRunner {
         s.shopName = "Sample Pickles & Papad";
         s.bio = "This is a sample shop that shows what a seller's page looks like. Real shops are added from photos and notes.";
         s.location = group.location;
-        s.language = "mr";
         s.status = SellerStatus.PUBLISHED;
         s.verifiedAt = java.time.OffsetDateTime.now();
         sellers.save(s);

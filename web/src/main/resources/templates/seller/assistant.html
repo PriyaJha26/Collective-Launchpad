@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,8 +8,10 @@
   <link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
-<header th:replace="~{fragments :: sellerBar}"></header>
-<main class="wrap narrow admin">
+<header th:replace="~{fragments :: topBar}"></header>
+<div class="wrap with-side">
+<aside th:replace="~{fragments :: sellerSide}"></aside>
+<main class="side-main narrow admin">
   <th:block th:replace="~{fragments :: flash}"></th:block>
   <h1 th:text="#{assistant.title}">Set up my shop with the assistant</h1>
   <p class="muted" th:text="#{assistant.intro}">Send photos of your products and price list…</p>
@@ -19,7 +21,6 @@
   <th:block th:if="${seller.isEditableByAgent()}">
     <!-- Not started yet -->
     <form th:if="${onb == null}" th:action="@{/seller/assistant/start}" method="post" enctype="multipart/form-data" class="panel" id="sellerForm">
-      <input type="hidden" id="language" th:value="${lang}">
       <label for="photos"><span th:text="#{assistant.photos}">Photos</span> <span class="muted small" th:text="#{assistant.upTo(${maxPhotos})}"></span></label>
       <input id="photos" name="photos" type="file" accept="image/jpeg,image/png,image/webp" multiple>
       <div class="previews" id="previews"></div>
@@ -47,7 +48,6 @@
       </div>
       <form th:if="${!onb.isWorking() and onb.status != 'failed'}" th:action="@{/seller/assistant/answer}" method="post"
             enctype="multipart/form-data" class="panel" id="sellerForm">
-        <input type="hidden" id="language" th:value="${lang}">
         <label for="notes" th:text="${onb.status == 'submitted'} ? #{assistant.addMore} : #{assistant.yourAnswer}">Your answer</label>
         <div class="mic"><button type="button" class="btn secondary small" id="micBtn" th:text="'🎤 ' + #{mic.speak}">🎤 Speak</button><span id="micState" class="small muted"></span></div>
         <textarea id="notes" name="answer" maxlength="4000"></textarea>
@@ -76,6 +76,7 @@
     </div>
   </div>
 </main>
+</div>
 <div class="overlay hidden" id="overlay"><div class="spinner"></div><strong th:text="#{common.sending}">Sending…</strong></div>
 <span class="hidden" id="micText" th:attr="data-start=#{mic.speak},data-stop=#{mic.stop},data-listening=#{mic.listening},data-unsupported=#{mic.unsupported},data-nolang=#{mic.noLang},data-preparing=#{photos.preparing}"></span>
 <script src="/js/photos.js"></script>

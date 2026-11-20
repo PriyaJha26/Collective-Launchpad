@@ -1,6 +1,8 @@
 package com.collectivelaunchpad.admin;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.InitBinder;
@@ -10,10 +12,6 @@ import com.collectivelaunchpad.account.AppUser;
 import com.collectivelaunchpad.config.SiteUrls;
 import com.collectivelaunchpad.domain.Group;
 import com.collectivelaunchpad.domain.Repositories.GroupRepository;
-import com.collectivelaunchpad.i18n.LangLinks;
-import com.collectivelaunchpad.i18n.LanguageResolver;
-import com.collectivelaunchpad.i18n.Languages;
-import com.collectivelaunchpad.i18n.Msg;
 import com.collectivelaunchpad.shop.Cart;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,12 +23,19 @@ public class AdminModelAdvice {
 
     private final GroupRepository groups;
     private final SiteUrls urls;
-    private final LanguageResolver languages;
+    private final boolean googleLogin;
 
-    public AdminModelAdvice(GroupRepository groups, SiteUrls urls, LanguageResolver languages) {
+    public AdminModelAdvice(GroupRepository groups, SiteUrls urls,
+                            ObjectProvider<ClientRegistrationRepository> google) {
         this.groups = groups;
         this.urls = urls;
-        this.languages = languages;
+        this.googleLogin = google.getIfAvailable() != null;
+    }
+
+    /** Show "Continue with Google" (only when GOOGLE_CLIENT_ID / SECRET are set). */
+    @ModelAttribute("googleLogin")
+    boolean googleLogin() {
+        return googleLogin;
     }
 
     @ModelAttribute("group")
@@ -54,33 +59,14 @@ public class AdminModelAdvice {
         return Cart.count(req.getSession(false));
     }
 
-    // ------------------------------------------------------------------ language
-
-    /** The reader's language code, e.g. "hi". */
-    @ModelAttribute("lang")
-    String lang() {
-        return Msg.lang();
-    }
-
-    @ModelAttribute("rtl")
-    boolean rtl() {
-        return Languages.isRtl(Msg.lang());
-    }
-
-    /** False until the visitor picks a language: the "Choose your language" banner is shown. */
-    @ModelAttribute("langChosen")
-    boolean langChosen(HttpServletRequest req) {
-        return languages.hasChosen(req);
-    }
-
-    @ModelAttribute("siteLanguages")
-    java.util.Map<String, String> siteLanguages() {
-        return Languages.NATIVE;
-    }
-
-    @ModelAttribute("langLinks")
-    LangLinks langLinks(HttpServletRequest req) {
-        return LangLinks.of(req);
+    /**
+     * The current path on the main domain (e.g. "/seller/orders"), to highlight where the reader
+     * is in the top bar. Empty on shop subdomains, where the bar links back to the main site.
+     */
+    @ModelAttribute("path")
+    String path(HttpServletRequest req) {
+        return urls.domain().equalsIgnoreCase(req.getServerName())
+                ? req.getRequestURI().substring(req.getContextPath().length()) : "";
     }
 
     @InitBinder

@@ -23,10 +23,7 @@ import com.collectivelaunchpad.domain.Repositories.ProductRepository;
 import com.collectivelaunchpad.domain.Repositories.ReplyRepository;
 import com.collectivelaunchpad.domain.Repositories.SellerRepository;
 import com.collectivelaunchpad.domain.Seller;
-import com.collectivelaunchpad.i18n.Languages;
 import com.collectivelaunchpad.i18n.Msg;
-import com.collectivelaunchpad.i18n.SellerLanguages;
-import com.collectivelaunchpad.i18n.TranslationService;
 import com.collectivelaunchpad.mail.MailService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -68,14 +65,11 @@ public class EnquiryService {
     private final MailService mail;
     private final ObjectMapper mapper;
     private final ExecutorService background;
-    private final TranslationService translator;
-    private final SellerLanguages sellerLanguages;
     private final Msg msg;
 
     public EnquiryService(EnquiryRepository enquiries, ReplyRepository replies, SellerRepository sellers,
                           ProductRepository products, GroupRepository groups, AgentClient agent, MailService mail,
-                          ObjectMapper mapper, ExecutorService backgroundExecutor, TranslationService translator,
-                          SellerLanguages sellerLanguages, Msg msg) {
+                          ObjectMapper mapper, ExecutorService backgroundExecutor, Msg msg) {
         this.enquiries = enquiries;
         this.replies = replies;
         this.sellers = sellers;
@@ -85,13 +79,7 @@ public class EnquiryService {
         this.mail = mail;
         this.mapper = mapper;
         this.background = backgroundExecutor;
-        this.translator = translator;
-        this.sellerLanguages = sellerLanguages;
         this.msg = msg;
-    }
-
-    private String sellerLanguage(Seller s) {
-        return sellerLanguages.of(s);
     }
 
     // ------------------------------------------------------------------ intake
@@ -119,7 +107,6 @@ public class EnquiryService {
             throw new InvalidEnquiry(msg.get("err.phone"));
         }
         Enquiry e = new Enquiry();
-        e.customerLanguage = Msg.lang();
         e.sellerId = seller.id;
         e.customerName = name;
         e.customerEmail = email;
@@ -169,15 +156,10 @@ public class EnquiryService {
                 JsonNode c = agent.classify(req);
                 e.category = c.path("category").asText(null);
                 e.urgency = c.path("urgency").asText(null);
-                e.language = c.path("language").asText(null);
                 enquiries.save(e);
             } catch (AgentClient.AgentException ex) {
                 log.warn("Classifying enquiry {} failed: {}", enquiryId, ex.getMessage());
             }
-        }
-        if (e.translations == null) {
-            Seller s = sellers.findById(e.sellerId).orElseThrow();
-            translateMessage(e, java.util.List.of(sellerLanguage(s), "en"));
         }
         try {
             JsonNode d = agent.draftReply(draftRequest(e));
@@ -197,37 +179,11 @@ public class EnquiryService {
         enquiries.save(e);
     }
 
-    /** Adds the message in the given languages (skipping the one it was written in). Never throws. */
-    private void translateMessage(Enquiry e, java.util.List<String> targets) {
-        var wanted = targets.stream().filter(t -> e.needsTranslationFor(t)).distinct().toList();
-        if (wanted.isEmpty()) {
-            return;
-        }
-        try {
-            var result = translator.translate(java.util.Map.of("text", e.message), wanted);
-            Enquiry fresh = enquiries.findById(e.id).orElseThrow();
-            fresh.translations = translator.flatten(result, fresh.translations);
-            enquiries.save(fresh);
-            e.translations = fresh.translations;
-        } catch (AgentClient.AgentException ex) {
-            log.warn("Translating enquiry {} failed: {}", e.id, ex.getMessage());
-        }
-    }
-
-    /** The reader's language has no translation yet (e.g. the seller switched language): add it in the background. */
-    public void translateInBackground(Enquiry e, String lang) {
-        if (e.needsTranslationFor(lang)) {
-            long id = e.id;
-            background.submit(() -> enquiries.findById(id).ifPresent(fresh -> translateMessage(fresh, java.util.List.of(lang))));
-        }
-    }
-
     private ObjectNode draftRequest(Enquiry e) {
         Seller s = sellers.findById(e.sellerId).orElseThrow();
         Group g = groups.findFirstByOrderByIdAsc().orElseThrow();
         ObjectNode req = mapper.createObjectNode();
         req.put("group_name", g.name);
-        req.put("reply_language", sellerLanguage(s));
         ObjectNode seller = req.putObject("seller");
         seller.put("name", s.name);
         seller.put("shop_name", s.shopName == null ? s.name : s.shopName);
@@ -288,23 +244,6 @@ public class EnquiryService {
         if (text.length() > 6000) {
             throw new InvalidEnquiry(msg.get("err.replyLong"));
         }
-        String writtenIn = Msg.lang();
-        String customerLang = Languages.orEnglish(e.customerLanguage);
-        com.fasterxml.jackson.databind.JsonNode translated = null;
-        String forCustomer = text;
-        if (!customerLang.equals(writtenIn)) {
-            try {
-                translated = translator.flatten(translator.translate(java.util.Map.of("text", text), java.util.List.of(customerLang)), null);
-            } catch (AgentClient.AgentException ex) {
-                log.warn("Translating the reply to enquiry {} failed: {}", enquiryId, ex.getMessage());
-                throw new InvalidEnquiry(msg.get("err.replyTranslate"));
-            }
-            if (translated.path(customerLang).asText("").isBlank()) {
-                log.warn("The agent returned no {} translation for the reply to enquiry {}", customerLang, enquiryId);
-                throw new InvalidEnquiry(msg.get("err.replyTranslate"));
-            }
-            forCustomer = translated.path(customerLang).asText();
-        }
         Reply r = replies.findFirstByEnquiryIdAndStatusInOrderByIdDesc(e.id, Set.of(ReplyStatus.DRAFT, ReplyStatus.APPROVED))
                 .orElseGet(() -> {
                     Reply fresh = new Reply();
@@ -313,8 +252,6 @@ public class EnquiryService {
                     return fresh;
                 });
         r.body = text;
-        r.language = writtenIn;
-        r.translations = translated;
         r.status = ReplyStatus.APPROVED;
         r.approvedBy = adminId;
         replies.save(r);
@@ -322,7 +259,7 @@ public class EnquiryService {
         Seller s = sellers.findById(e.sellerId).orElseThrow();
         // Logged-in customers read the reply in their account; email is sent too when they gave one.
         MailService.Result result = e.hasEmail()
-                ? mail.send(e.customerEmail, mail.from(), msg.in(customerLang, "email.replySubject", s.shopNameIn(customerLang)), forCustomer)
+                ? mail.send(e.customerEmail, mail.from(), msg.get("email.replySubject", s.displayName()), text)
                 : new MailService.Result(true, "IN_APP");
         if (!result.ok()) {
             r.sendError = result.detail();

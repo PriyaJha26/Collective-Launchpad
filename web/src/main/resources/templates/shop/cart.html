@@ -1,22 +1,23 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{fragments :: head(#{nav.cart} + ' · ' + ${group.name})}"></head>
 <body>
-<header th:replace="~{fragments :: siteBar}"></header>
+<header th:replace="~{fragments :: topBar}"></header>
 <main class="wrap narrow">
   <th:block th:replace="~{fragments :: flash}"></th:block>
-  <h1 class="mt" th:text="#{cart.title}">Your cart</h1>
+  <p class="crumbs"><a href="/products" th:text="#{cart.continue}">Continue shopping</a></p>
+  <h1 th:text="#{cart.title}">Your cart</h1>
   <p class="muted" th:if="${carts.isEmpty()}"><span th:text="#{cart.empty}">Your cart is empty.</span> <a href="/products" th:text="#{common.browseProducts}">Browse products</a>.</p>
   <p class="hint" th:unless="${carts.isEmpty()}" th:text="#{cart.perShop}">Each shop delivers and takes payment on its own, so you check out once per shop.</p>
 
   <section class="panel cart-shop" th:each="c : ${carts}">
-    <h2 th:text="${c.seller().shopNameIn(lang)}">Shop</h2>
+    <h2 th:text="${c.seller().shopName}">Shop</h2>
     <div class="line" th:each="l : ${c.lines()}">
       <img th:if="${l.product().imageUrl() != null}" th:src="${l.product().imageUrl()}" alt="">
       <div th:unless="${l.product().imageUrl() != null}" class="noimg"></div>
       <div>
-        <a th:href="@{/p/{id}(id=${l.product().id})}" th:text="${l.product().nameIn(lang)}">Item</a>
-        <div class="small muted"><span th:replace="~{fragments :: price(${l.product()})}"></span> <span th:text="${l.product().unitIn(lang)}"></span></div>
+        <a th:href="@{/p/{id}(id=${l.product().id})}" th:text="${l.product().name}">Item</a>
+        <div class="small muted"><span th:replace="~{fragments :: price(${l.product()})}"></span> <span th:text="${l.product().unit}"></span></div>
         <div class="small" th:if="${!l.product().canBeOrdered()}"><span class="badge crit" th:text="#{cart.notAvailable}">Not available now</span></div>
         <div class="small" th:if="${l.product().stock != null and l.product().stock < l.quantity()}"><span class="badge warn" th:text="#{product.onlyLeft(${l.product().stock})}"></span></div>
         <form th:action="@{/cart/update}" method="post" class="row mt">

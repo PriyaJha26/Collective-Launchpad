@@ -29,18 +29,16 @@
         <span th:case="'declined'" class="badge neutral">Declined</span>
       </span>
     </div>
-    <h3 class="mt"><span th:text="${r.name}">Name</span><span class="en" th:if="${r.english('name')}" th:text="${r.english('name')}"></span></h3>
+    <h3 class="mt"><span th:text="${r.name}">Name</span></h3>
     <dl class="kv">
       <dt>Phone</dt><dd><a th:if="${r.phone}" th:href="'tel:' + ${r.phone}" th:text="${r.phone}"></a><span th:unless="${r.phone}">—</span></dd>
       <dt>Email</dt><dd th:text="${r.email ?: '—'}"></dd>
       <th:block th:if="${r.isJoin()}">
-        <dt>Location</dt><dd><span th:text="${r.location ?: '—'}"></span><span class="en" th:if="${r.english('location')}" th:text="${r.english('location')}"></span></dd>
-        <dt>Language</dt><dd th:text="${r.language != null} ? ${languages[r.language]} : '—'"></dd>
-        <dt>Makes / sells</dt><dd><span th:text="${r.craft}"></span><span class="en" th:if="${r.english('craft')}" th:text="${r.english('craft')}"></span></dd>
+        <dt>Location</dt><dd th:text="${r.location ?: '—'}"></dd>
+        <dt>Makes / sells</dt><dd th:text="${r.craft}"></dd>
       </th:block>
     </dl>
     <div class="orig" th:if="${r.message}" th:text="${r.message}"></div>
-    <div class="orig" th:if="${r.english('message')}"><strong>In English:</strong> <span th:text="${r.english('message')}"></span></div>
 
     <th:block th:if="${r.replySent}">
       <p class="small muted mt" th:text="'You replied ' + ${#temporals.format(r.repliedAt, 'dd MMM HH:mm')}"></p>

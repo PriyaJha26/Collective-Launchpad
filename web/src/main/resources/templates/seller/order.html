@@ -1,11 +1,13 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{fragments :: head(#{order.title(${order.id})})}"></head>
 <body>
-<header th:replace="~{fragments :: sellerBar}"></header>
-<main class="wrap narrow admin">
+<header th:replace="~{fragments :: topBar}"></header>
+<div class="wrap with-side">
+<aside th:replace="~{fragments :: sellerSide}"></aside>
+<main class="side-main narrow admin">
   <th:block th:replace="~{fragments :: flash}"></th:block>
-  <p class="small"><a href="/seller/orders" th:text="'← ' + #{seller.nav.orders}">← Orders</a></p>
+  <p class="crumbs"><a href="/seller/orders" th:text="#{seller.nav.orders}">Orders</a></p>
   <div class="row between">
     <h1 th:text="#{order.title(${order.id})}">Order</h1>
     <span class="badge" th:classappend="${order.isClosedUnsuccessfully()} ? 'crit' : (${order.status == 'completed'} ? 'good' : 'warn')" th:text="#{${'order.status.' + order.status}}"></span>
@@ -19,8 +21,7 @@
       <dt th:text="#{checkout.delivery}">Delivery</dt><dd class="pre" th:text="${order.delivery == 'Pickup'} ? #{order.pickup} : ${order.delivery}"></dd>
       <dt th:text="#{order.payment}">Payment</dt><dd th:text="#{${'order.payment.' + order.paymentMethod}}"></dd>
       <th:block th:if="${order.note}"><dt th:text="#{seller.order.note}">Note</dt><dd>
-        <div class="pre" th:text="${order.noteIn(lang)}"></div>
-        <th:block th:replace="~{fragments :: original(${order.note}, ${order.noteIn(lang) != order.note})}"></th:block>
+        <div class="pre" th:text="${order.note}"></div>
       </dd></th:block>
     </dl>
     <div class="row mt">
@@ -59,11 +60,11 @@
     <form th:if="${order.status == 'placed' or order.status == 'accepted'}" th:action="@{/seller/orders/{id}/decline(id=${order.id})}" method="post" class="mt">
       <label for="note" class="small" th:text="#{seller.order.declineWhy}">Cannot do this order? Tell the customer why (optional)</label>
       <input id="note" name="note" type="text" maxlength="500" th:placeholder="#{seller.order.declineExample}">
-      <p class="hint" th:text="#{seller.order.declineTranslated}">Write in your language; the customer reads it in theirs.</p>
       <p class="mt"><button class="btn danger small" type="submit" th:attr="data-confirm=#{seller.order.declineConfirm}" th:text="#{seller.order.decline}">Decline order</button></p>
     </form>
   </div>
 </main>
+</div>
 <script src="/js/admin.js"></script>
 </body>
 </html>

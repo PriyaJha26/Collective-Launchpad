@@ -1,48 +1,61 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{fragments :: head(#{nav.myShop} + ' · ' + ${group.name})}"></head>
 <body>
-<header th:replace="~{fragments :: sellerBar}"></header>
-<main class="wrap admin">
+<header th:replace="~{fragments :: topBar}"></header>
+<div class="wrap with-side">
+<aside th:replace="~{fragments :: sellerSide}"></aside>
+<main class="side-main admin">
   <th:block th:replace="~{fragments :: flash}"></th:block>
   <div class="alert ok" th:if="${param.welcome}" th:text="#{seller.welcome}">Welcome!</div>
 
   <h1 th:text="${seller.shopName ?: seller.name}">Shop</h1>
+  <p class="crumbs muted" th:text="#{nav.myShop} + ' › ' + #{seller.nav.home}">My shop › Home</p>
 
   <!-- Shop status and what to do next -->
-  <div class="panel" th:switch="${seller.status}">
-    <th:block th:case="'draft'">
-      <p><span class="badge neutral" th:text="#{seller.status.draft}">Not live yet</span> <span th:text="#{seller.status.draftText}">Your shop is only visible to you.</span></p>
-      <ol class="small">
-        <li><a href="/seller/assistant" th:text="#{seller.step1.assistant}">Set it up with the assistant</a> <span th:text="#{seller.step1.or}">from photos and notes, or</span> <a href="/seller/products/new" th:text="#{seller.step1.yourself}">add products yourself</a>.</li>
-        <li><span th:text="#{seller.step2.check}">Check</span> <a href="/seller/shop" th:text="#{seller.nav.settings}">shop settings</a>: <span th:text="#{seller.step2.what}">name, web address and your UPI ID.</span></li>
-        <li th:text="#{seller.step3}">Send it to the group for approval.</li>
-      </ol>
-      <form th:action="@{/seller/shop/submit}" method="post"><button class="btn" type="submit" th:text="#{seller.submit}">Send for approval</button></form>
-    </th:block>
-    <th:block th:case="'pending_review'">
-      <p><span class="badge warn" th:text="#{seller.status.pending}">Waiting for approval</span> <span th:text="#{seller.status.pendingText}">The group will check your shop and make it live.</span></p>
-    </th:block>
-    <th:block th:case="'published'">
-      <p><span class="badge good" th:text="#{seller.status.live}">Live</span> <span th:text="#{seller.status.liveText}">Customers can see your shop at</span>
-        <a th:href="${urls.shopUrl(seller.slug)}" target="_blank" rel="noopener" th:text="${urls.shopHost(seller.slug)}"></a></p>
-      <p class="hint" th:text="#{seller.translatedHint}">Your shop and products are translated automatically, so every customer can read them in their own language.</p>
-    </th:block>
-    <th:block th:case="'hidden'">
-      <p><span class="badge crit" th:text="#{seller.status.hidden}">Hidden</span> <span th:text="#{seller.status.hiddenText}">The group has hidden your shop. Please contact them.</span></p>
-    </th:block>
+  <div class="banner" th:classappend="${seller.status}" th:switch="${seller.status}">
+    <span class="ic"><th:block th:replace="~{fragments :: ico('alert')}"></th:block></span>
+    <div>
+      <th:block th:case="'draft'">
+        <b th:text="#{seller.status.draft}">Not live yet</b>
+        <p th:text="#{seller.status.draftText}">Your shop is only visible to you.</p>
+        <ol class="small">
+          <li><a href="/seller/assistant" th:text="#{seller.step1.assistant}">Set it up with the assistant</a> <span th:text="#{seller.step1.or}">from photos and notes, or</span> <a href="/seller/products/new" th:text="#{seller.step1.yourself}">add products yourself</a>.</li>
+          <li><span th:text="#{seller.step2.check}">Check</span> <a href="/seller/shop" th:text="#{seller.nav.settings}">shop settings</a>: <span th:text="#{seller.step2.what}">name, web address and your UPI ID.</span></li>
+          <li th:text="#{seller.step3}">Send it to the group for approval.</li>
+        </ol>
+        <form th:action="@{/seller/shop/submit}" method="post"><button class="btn" type="submit" th:text="#{seller.submit}">Send for approval</button></form>
+      </th:block>
+      <th:block th:case="'pending_review'">
+        <b th:text="#{seller.status.pending}">Waiting for approval</b>
+        <p th:text="#{seller.status.pendingText}">The group will check your shop and make it live.</p>
+      </th:block>
+      <th:block th:case="'published'">
+        <b th:text="#{seller.status.live}">Live</b>
+        <p><span th:text="#{seller.status.liveText}">Customers can see your shop at</span>
+          <a th:href="${urls.shopUrl(seller.slug)}" target="_blank" rel="noopener" th:text="${urls.shopHost(seller.slug)}"></a></p>
+      </th:block>
+      <th:block th:case="'hidden'">
+        <b th:text="#{seller.status.hidden}">Hidden</b>
+        <p th:text="#{seller.status.hiddenText}">The group has hidden your shop. Please contact them.</p>
+      </th:block>
+    </div>
   </div>
 
-  <div class="tiles">
-    <a class="tile" href="/seller/orders" th:classappend="${newOrders > 0} ? 'attention'">
-      <div class="label" th:text="#{seller.tile.newOrders}">New orders to accept</div><div class="value" th:text="${newOrders}">0</div></a>
-    <a class="tile" href="/seller/messages" th:classappend="${openMessages > 0} ? 'attention'">
-      <div class="label" th:text="#{seller.tile.messages}">Messages to answer</div><div class="value" th:text="${openMessages}">0</div></a>
-    <a class="tile" href="/seller/orders">
-      <div class="label" th:text="#{seller.tile.month}">Earned this month</div><div class="value" th:text="${earnings.paidThisMonthLabel()}">₹0</div>
-      <div class="sub" th:text="#{seller.tile.total(${earnings.paidTotalLabel()})}"></div></a>
-    <a class="tile" href="/seller/products">
-      <div class="label" th:text="#{seller.nav.products}">Products</div><div class="value" th:text="${productCount}">0</div></a>
+  <div class="stats">
+    <a class="stat" href="/seller/orders" th:classappend="${newOrders > 0} ? 'attention'">
+      <div class="top"><span th:text="#{seller.tile.newOrders}">New orders to accept</span><span class="ic"><th:block th:replace="~{fragments :: ico('orders')}"></th:block></span></div>
+      <div class="num" th:text="${newOrders}">0</div></a>
+    <a class="stat" href="/seller/messages" th:classappend="${openMessages > 0} ? 'attention'">
+      <div class="top"><span th:text="#{seller.tile.messages}">Messages to answer</span><span class="ic"><th:block th:replace="~{fragments :: ico('chat')}"></th:block></span></div>
+      <div class="num" th:text="${openMessages}">0</div></a>
+    <a class="stat" href="/seller/orders">
+      <div class="top"><span th:text="#{seller.tile.month}">Earned this month</span><span class="ic"><th:block th:replace="~{fragments :: ico('rupee')}"></th:block></span></div>
+      <div class="num" th:text="${earnings.paidThisMonthLabel()}">₹0</div>
+      <small th:text="#{seller.tile.total(${earnings.paidTotalLabel()})}"></small></a>
+    <a class="stat" href="/seller/products">
+      <div class="top"><span th:text="#{seller.nav.products}">Products</span><span class="ic"><th:block th:replace="~{fragments :: ico('box')}"></th:block></span></div>
+      <div class="num" th:text="${productCount}">0</div></a>
   </div>
 
   <div class="panel" th:if="${!activeOrders.isEmpty()}">
@@ -59,5 +72,6 @@
     <a class="btn small secondary" href="/seller/assistant" th:text="#{seller.assistant.open}">Open the assistant</a>
   </div>
 </main>
+</div>
 </body>
 </html>

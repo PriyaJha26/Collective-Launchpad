@@ -1,13 +1,15 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:lang="${lang}" th:dir="${rtl} ? 'rtl' : 'ltr'">
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head th:replace="~{fragments :: head(#{order.title(${order.id})})}"></head>
 <body>
-<header th:replace="~{fragments :: siteBar}"></header>
-<main class="wrap narrow">
+<header th:replace="~{fragments :: topBar}"></header>
+<div class="wrap with-side">
+<aside th:replace="~{fragments :: accountSide}"></aside>
+<main class="side-main narrow">
   <th:block th:replace="~{fragments :: flash}"></th:block>
-  <p class="small mt"><a href="/account/orders" th:text="'← ' + #{account.orders}">← My orders</a></p>
+  <p class="crumbs"><a href="/account/orders" th:text="#{account.orders}">My orders</a></p>
   <h1 th:text="#{order.title(${order.id})}">Order</h1>
-  <p><span th:text="#{order.from}">From</span> <a th:href="${urls.shopUrl(seller.slug)}" th:text="${seller.shopNameIn(lang)}">Shop</a> ·
+  <p><span th:text="#{order.from}">From</span> <a th:href="${urls.shopUrl(seller.slug)}" th:text="${seller.shopName}">Shop</a> ·
     <span th:text="${#temporals.format(order.createdAt, 'dd MMM yyyy, HH:mm')}"></span></p>
 
   <div class="steps" th:unless="${order.isClosedUnsuccessfully()}">
@@ -18,8 +20,7 @@
     <span th:classappend="${order.isPaid()} ? 'done'" th:text="#{order.paid}">Paid</span>
   </div>
   <div class="alert err" th:if="${order.isClosedUnsuccessfully()}">
-    <span th:text="#{${'order.status.' + order.status}}"></span><span th:if="${order.sellerNote}" th:text="': ' + ${order.sellerNoteIn(lang)}"></span>
-    <th:block th:replace="~{fragments :: original(${order.sellerNote}, ${order.sellerNote != null and order.sellerNoteIn(lang) != order.sellerNote})}"></th:block>
+    <span th:text="#{${'order.status.' + order.status}}"></span><span th:if="${order.sellerNote}" th:text="': ' + ${order.sellerNote}"></span>
   </div>
 
   <!-- Paying by UPI: straight to the seller -->
@@ -41,7 +42,7 @@
   <div class="panel">
     <div class="line" th:each="it : ${items}">
       <div class="noimg"></div>
-      <div><span th:text="${itemNames.name(it, lang)}"></span><div class="small muted" th:text="${it.quantity} + ' × ' + ${it.priceLabel()} + ' ' + ${itemNames.unit(it, lang)}"></div></div>
+      <div><span th:text="${it.name}"></span><div class="small muted" th:text="${it.quantity} + ' × ' + ${it.priceLabel()} + ' ' + ${it.unit}"></div></div>
       <strong th:text="${it.lineTotalLabel()}"></strong>
     </div>
     <p class="total mt" th:text="#{common.total(${order.totalLabel()})}"></p>
@@ -61,6 +62,7 @@
     </form>
   </div>
 </main>
+</div>
 <script src="/js/admin.js"></script>
 </body>
 </html>

@@ -5,112 +5,196 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title th:text="${title}">Launchpad</title>
   <link rel="stylesheet" href="/css/app.css">
+  <script src="/js/nav.js" defer></script>
 </head>
 <body>
 
-<!-- Public site (customers). Links are absolute so they also work from shop subdomains. -->
-<header class="site-bar" th:fragment="siteBar">
-  <th:block th:replace="~{fragments :: langBanner}"></th:block>
-  <div class="wrap">
-    <a class="brand" th:href="${urls.mainUrl()} + '/'" th:text="${group.name}">Group</a>
-    <nav>
-      <a th:href="${urls.mainUrl()} + '/products'" th:text="#{nav.products}">Products</a>
-      <a th:href="${urls.mainUrl()} + '/cart'"><span th:text="#{nav.cart}">Cart</span><span class="count" th:if="${cartCount > 0}" th:text="${cartCount}"></span></a>
-      <th:block th:if="${me == null}">
-        <a th:href="${urls.mainUrl()} + '/login'" th:text="#{nav.login}">Log in</a>
-        <a th:href="${urls.mainUrl()} + '/join'" th:text="#{nav.sell}">Sell with us</a>
+<!-- The same header on every page: brand, page links, cart/shop/admin icons
+     and the account menu. Links are absolute so they also work from shop subdomains.
+     On pages with a left rail the menu button opens the rail; elsewhere it opens the links. -->
+<header class="app-bar" th:fragment="topBar">
+  <button class="menu-btn" type="button" th:attr="aria-label=#{nav.menu}" aria-expanded="false" aria-controls="top-menu">
+    <th:block th:replace="~{fragments :: ico('menu')}"></th:block>
+  </button>
+  <a class="brand" th:href="${urls.mainUrl()} + '/'"><span class="logo"><th:block th:replace="~{fragments :: ico('store')}"></th:block></span> <span th:text="${group.name}">Group</span></a>
+  <nav class="nav" id="top-menu" th:attr="aria-label=${group.name}">
+    <a th:href="${urls.mainUrl()} + '/'" th:classappend="${path == '/'} ? 'active'" th:text="#{nav.home}">Home</a>
+    <a th:href="${urls.mainUrl()} + '/products'" th:classappend="${path.startsWith('/products') or path.startsWith('/p/')} ? 'active'" th:text="#{nav.products}">Products</a>
+    <a class="btn small" th:if="${me == null}" th:href="${urls.mainUrl()} + '/join'" th:text="#{nav.sell}">Sell with us</a>
+  </nav>
+  <div class="actions">
+    <a class="icon-btn" th:href="${urls.mainUrl()} + '/cart'" th:classappend="${path.startsWith('/cart') or path.startsWith('/checkout')} ? 'active'"
+       th:attr="aria-label=#{nav.cart},title=#{nav.cart}">
+      <th:block th:replace="~{fragments :: ico('cart')}"></th:block><span class="badge-n" th:if="${cartCount > 0}" th:text="${cartCount}"></span></a>
+    <a class="btn small secondary" th:if="${me == null}" th:href="${urls.mainUrl()} + '/login'"
+       th:classappend="${path == '/login'} ? 'on'" th:text="#{nav.login}">Log in</a>
+    <a class="icon-btn" th:if="${me != null and me.isSeller()}" th:href="${urls.mainUrl()} + '/seller'"
+       th:classappend="${path.startsWith('/seller')} ? 'active'" th:attr="aria-label=#{nav.myShop},title=#{nav.myShop}">
+      <th:block th:replace="~{fragments :: ico('store')}"></th:block></a>
+    <a class="icon-btn" th:if="${me != null and me.isSuperadmin()}" th:href="${urls.mainUrl()} + '/admin'"
+       th:classappend="${path.startsWith('/admin')} ? 'active'" th:attr="aria-label=#{nav.admin},title=#{nav.admin}">
+      <th:block th:replace="~{fragments :: ico('gear')}"></th:block></a>
+    <details class="dd me-menu" th:if="${me != null}">
+      <summary class="dd-btn" th:attr="aria-label=#{nav.menu}"><span class="avatar" aria-hidden="true" th:text="${me.name.substring(0,1)}">D</span><th:block th:replace="~{fragments :: ico('chev')}"></th:block></summary>
+      <div class="menu me-options">
+        <div class="who"><b th:text="${me.name}">Name</b><small th:if="${me.isSeller()}" th:text="#{account.typeSeller}">Seller account</small></div>
+        <a class="item" th:href="${urls.mainUrl()} + '/account'"><th:block th:replace="~{fragments :: ico('user')}"></th:block><span th:text="#{nav.account}">My account</span></a>
+        <a class="item" th:href="${urls.mainUrl()} + '/account/orders'"><th:block th:replace="~{fragments :: ico('orders')}"></th:block><span th:text="#{account.orders}">My orders</span></a>
+        <a class="item" th:href="${urls.mainUrl()} + '/account/messages'"><th:block th:replace="~{fragments :: ico('chat')}"></th:block><span th:text="#{account.messages}">My messages</span></a>
+        <hr>
+        <form th:action="@{/logout}" method="post"><button class="item danger" type="submit"><th:block th:replace="~{fragments :: ico('logout')}"></th:block><span th:text="#{nav.logout}">Log out</span></button></form>
+      </div>
+    </details>
+  </div>
+</header>
+
+<!-- Superadmin: the same header, with the admin links instead -->
+<header class="app-bar admin-bar" th:fragment="adminBar">
+  <button class="menu-btn" type="button" aria-label="Menu" aria-expanded="false" aria-controls="top-menu">
+    <th:block th:replace="~{fragments :: ico('menu')}"></th:block>
+  </button>
+  <a class="brand" th:href="${urls.mainUrl()} + '/'"><span class="logo"><th:block th:replace="~{fragments :: ico('store')}"></th:block></span> <span th:text="${group.name} + ' · Superadmin'">Group</span></a>
+  <nav class="nav" id="top-menu" aria-label="Superadmin">
+    <a href="/admin" th:classappend="${path == '/admin'} ? 'active'">Dashboard</a>
+    <a href="/admin/sellers/new" th:classappend="${path == '/admin/sellers/new'} ? 'active'">Add a seller</a>
+    <a href="/admin/orders" th:classappend="${path.startsWith('/admin/orders')} ? 'active'">Orders</a>
+    <a href="/admin/inbox" th:classappend="${path.startsWith('/admin/inbox')} ? 'active'">Inbox</a>
+    <a href="/admin/requests" th:classappend="${path.startsWith('/admin/requests')} ? 'active'">Requests</a>
+    <a href="/admin/users" th:classappend="${path.startsWith('/admin/users')} ? 'active'">Users</a>
+  </nav>
+  <div class="actions">
+    <a class="icon-btn" href="/" target="_blank" rel="noopener" aria-label="Public site" title="Public site">
+      <th:block th:replace="~{fragments :: ico('globe')}"></th:block></a>
+    <details class="dd me-menu">
+      <summary class="dd-btn" aria-label="Account"><span class="avatar" aria-hidden="true" th:text="${me.name.substring(0,1)}">A</span><th:block th:replace="~{fragments :: ico('chev')}"></th:block></summary>
+      <div class="menu me-options">
+        <div class="who"><b th:text="${me.name}">Name</b><small>Superadmin</small></div>
+        <form th:action="@{/logout}" method="post"><button class="item danger" type="submit"><th:block th:replace="~{fragments :: ico('logout')}"></th:block><span>Log out</span></button></form>
+      </div>
+    </details>
+  </div>
+</header>
+
+<!-- SVG line icons (the rail design uses these instead of emoji) -->
+<th:block th:fragment="ico(name)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" focusable="false" th:switch="${name}">
+  <th:block th:case="'home'"><path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10"/></th:block>
+  <th:block th:case="'box'"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8"/></th:block>
+  <th:block th:case="'orders'"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3zM9 8h6M9 12h6"/></th:block>
+  <th:block th:case="'chat'"><path d="M21 12a8 8 0 01-11.6 7.1L4 20l1-4.6A8 8 0 1121 12z"/></th:block>
+  <th:block th:case="'spark'"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16z"/></th:block>
+  <th:block th:case="'gear'"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l.1-.1a1.7 1.7 0 00.3-1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></th:block>
+  <th:block th:case="'bag'"><path d="M5 8h14l-1 12H6L5 8zM9 8V6a3 3 0 016 0v2"/></th:block>
+  <th:block th:case="'cart'"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.6 12.4a1 1 0 001 .8h9.2a1 1 0 001-.8L20 7H6"/></th:block>
+  <th:block th:case="'list'"><path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01"/></th:block>
+  <th:block th:case="'user'"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/></th:block>
+  <th:block th:case="'search'"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></th:block>
+  <th:block th:case="'globe'"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/></th:block>
+  <th:block th:case="'chev'"><path d="M6 9l6 6 6-6"/></th:block>
+  <th:block th:case="'chevs'"><path d="M13 17l5-5-5-5M6 17l5-5-5-5"/></th:block>
+  <th:block th:case="'menu'"><path d="M4 6h16M4 12h16M4 18h16"/></th:block>
+  <th:block th:case="'logout'"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></th:block>
+  <th:block th:case="'store'"><path d="M3 9l1.5-5h15L21 9M3 9a3 3 0 006 0 3 3 0 006 0 3 3 0 006 0M5 12v8h14v-8"/></th:block>
+  <th:block th:case="'alert'"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5h.01"/></th:block>
+  <th:block th:case="'rupee'"><path d="M6 4h12M6 9h12M9 4c5 0 6 5 0 5l7 11"/></th:block>
+  <th:block th:case="'plus'"><path d="M12 5v14M5 12h14"/></th:block>
+</svg></th:block>
+
+<!-- Side navigation for the seller's own shop -->
+<aside class="sidebar" id="rail" th:fragment="sellerSide" th:attr="aria-label=#{nav.myShop}">
+  <div class="shop-card">
+    <span class="avatar" aria-hidden="true" th:text="${(seller.shopName ?: seller.name).substring(0,1)}">S</span>
+    <div class="label">
+      <b th:text="${seller.shopName ?: seller.name}">Shop</b>
+      <th:block th:switch="${seller.status}">
+        <span th:case="'draft'" class="status"><i></i><span th:text="#{seller.status.draft}">Not live yet</span></span>
+        <span th:case="'pending_review'" class="status"><i></i><span th:text="#{seller.status.pending}">Waiting for approval</span></span>
+        <span th:case="'published'" class="status live"><i></i><span th:text="#{seller.status.live}">Live</span></span>
+        <span th:case="'hidden'" class="status hidden-s"><i></i><span th:text="#{seller.status.hidden}">Hidden</span></span>
       </th:block>
-      <th:block th:if="${me != null}">
-        <a th:if="${me.isSuperadmin()}" href="/admin" th:text="#{nav.admin}">Admin</a>
-        <a th:if="${me.isSeller()}" href="/seller" th:text="#{nav.myShop}">My shop</a>
-        <a href="/account" th:text="#{nav.account}">My account</a>
-        <form th:action="@{/logout}" method="post" class="inline"><button class="linklike" type="submit" th:text="#{nav.logout}">Log out</button></form>
-      </th:block>
-      <th:block th:replace="~{fragments :: langMenu}"></th:block>
-    </nav>
+    </div>
   </div>
-</header>
+  <nav class="scroll" th:attr="aria-label=#{nav.myShop}">
+    <div class="group-title"><span th:text="#{nav.myShop}">My shop</span></div>
+    <a class="item" href="/seller" th:classappend="${path == '/seller' or path == '/seller/'} ? 'active'" th:attr="data-tip=#{seller.nav.home}" th:aria-current="${path == '/seller' or path == '/seller/'} ? 'page'"><th:block th:replace="~{fragments :: ico('home')}"></th:block><span class="label" th:text="#{seller.nav.home}">Home</span></a>
+    <a class="item" href="/seller/products" th:classappend="${path.startsWith('/seller/products')} ? 'active'" th:attr="data-tip=#{seller.nav.products}" th:aria-current="${path.startsWith('/seller/products')} ? 'page'"><th:block th:replace="~{fragments :: ico('box')}"></th:block><span class="label" th:text="#{seller.nav.products}">Products</span></a>
+    <a class="item" href="/seller/orders" th:classappend="${path.startsWith('/seller/orders')} ? 'active'" th:attr="data-tip=#{seller.nav.orders}" th:aria-current="${path.startsWith('/seller/orders')} ? 'page'"><th:block th:replace="~{fragments :: ico('orders')}"></th:block><span class="label" th:text="#{seller.nav.orders}">Orders</span></a>
+    <a class="item" href="/seller/messages" th:classappend="${path.startsWith('/seller/messages')} ? 'active'" th:attr="data-tip=#{seller.nav.messages}" th:aria-current="${path.startsWith('/seller/messages')} ? 'page'"><th:block th:replace="~{fragments :: ico('chat')}"></th:block><span class="label" th:text="#{seller.nav.messages}">Messages</span></a>
+    <a class="item" href="/seller/assistant" th:classappend="${path.startsWith('/seller/assistant')} ? 'active'" th:attr="data-tip=#{seller.assistant}" th:aria-current="${path.startsWith('/seller/assistant')} ? 'page'"><th:block th:replace="~{fragments :: ico('spark')}"></th:block><span class="label" th:text="#{seller.assistant}">Assistant</span></a>
+    <a class="item" href="/seller/shop" th:classappend="${path == '/seller/shop'} ? 'active'" th:attr="data-tip=#{seller.nav.settings}" th:aria-current="${path == '/seller/shop'} ? 'page'"><th:block th:replace="~{fragments :: ico('gear')}"></th:block><span class="label" th:text="#{seller.nav.settings}">Shop settings</span></a>
+    <a class="item" th:if="${seller.isPublished()}" th:href="${urls.shopUrl(seller.slug)}" target="_blank" rel="noopener" th:attr="data-tip=#{seller.nav.website}"><th:block th:replace="~{fragments :: ico('globe')}"></th:block><span class="label" th:text="#{seller.nav.website}">View my shop ↗</span></a>
+  </nav>
+  <div class="toggle">
+    <button class="item rail-toggle" type="button" th:attr="data-tip=#{nav.expand},aria-label=#{nav.collapse}" aria-expanded="false" aria-controls="rail"><th:block th:replace="~{fragments :: ico('chevs')}"></th:block><span class="label" th:text="#{nav.collapse}">Collapse</span></button>
+  </div>
+  <button class="scrim" type="button" th:attr="aria-label=#{nav.closeMenu}" tabindex="-1"></button>
+</aside>
 
-<!-- Superadmin (always English) -->
-<header class="admin-bar" th:fragment="adminBar">
-  <div class="wrap">
-    <a class="brand" href="/admin" th:text="'◆ ' + ${group.name} + ' · Superadmin'">Group</a>
-    <nav>
-      <a href="/admin">Dashboard</a>
-      <a href="/admin/sellers/new">Add a seller</a>
-      <a href="/admin/orders">Orders</a>
-      <a href="/admin/inbox">Inbox</a>
-      <a href="/admin/requests">Requests</a>
-      <a href="/admin/users">Users</a>
-      <a href="/" target="_blank" rel="noopener">Public site ↗</a>
-      <form th:action="@{/logout}" method="post" class="inline"><button class="linklike" type="submit">Log out</button></form>
-    </nav>
+<!-- Side navigation for a customer's own pages -->
+<aside class="sidebar" id="rail" th:fragment="accountSide" th:attr="aria-label=#{nav.account}">
+  <div class="shop-card">
+    <span class="avatar" aria-hidden="true" th:text="${me.name.substring(0,1)}">A</span>
+    <div class="label"><b th:text="${me.name}">Name</b></div>
   </div>
-</header>
+  <nav class="scroll" th:attr="aria-label=#{nav.account}">
+    <div class="group-title"><span th:text="#{nav.account}">My account</span></div>
+    <a class="item" href="/account" th:classappend="${path == '/account'} ? 'active'" th:attr="data-tip=#{nav.account}" th:aria-current="${path == '/account'} ? 'page'"><th:block th:replace="~{fragments :: ico('user')}"></th:block><span class="label" th:text="#{nav.account}">My account</span></a>
+    <a class="item" href="/account/orders" th:classappend="${path.startsWith('/account/orders')} ? 'active'" th:attr="data-tip=#{account.orders}" th:aria-current="${path.startsWith('/account/orders')} ? 'page'"><th:block th:replace="~{fragments :: ico('list')}"></th:block><span class="label" th:text="#{account.orders}">My orders</span></a>
+    <a class="item" href="/account/messages" th:classappend="${path.startsWith('/account/messages')} ? 'active'" th:attr="data-tip=#{account.messages}" th:aria-current="${path.startsWith('/account/messages')} ? 'page'"><th:block th:replace="~{fragments :: ico('chat')}"></th:block><span class="label" th:text="#{account.messages}">My messages</span></a>
+    <th:block th:if="${me != null and me.isSeller()}">
+      <div class="group-title"><span th:text="#{nav.myShop}">My shop</span></div>
+      <a class="item" href="/seller" th:attr="data-tip=#{account.shopDashboard}"><th:block th:replace="~{fragments :: ico('store')}"></th:block><span class="label" th:text="#{account.shopDashboard}">My shop dashboard</span></a>
+    </th:block>
+    <a class="item" th:if="${me != null and !me.isSeller() and !me.isSuperadmin()}" href="/register/seller" th:attr="data-tip=#{account.addShop}"><th:block th:replace="~{fragments :: ico('plus')}"></th:block><span class="label" th:text="#{account.addShop}">Add my shop</span></a>
+  </nav>
+  <div class="toggle">
+    <button class="item rail-toggle" type="button" th:attr="data-tip=#{nav.expand},aria-label=#{nav.collapse}" aria-expanded="false" aria-controls="rail"><th:block th:replace="~{fragments :: ico('chevs')}"></th:block><span class="label" th:text="#{nav.collapse}">Collapse</span></button>
+  </div>
+  <button class="scrim" type="button" th:attr="aria-label=#{nav.closeMenu}" tabindex="-1"></button>
+</aside>
 
-<!-- Seller -->
-<header class="admin-bar seller-bar" th:fragment="sellerBar">
-  <th:block th:replace="~{fragments :: langBanner}"></th:block>
-  <div class="wrap">
-    <a class="brand" href="/seller" th:text="'◆ ' + ${seller.shopName ?: seller.name}">Shop</a>
-    <nav>
-      <a href="/seller" th:text="#{seller.nav.home}">Home</a>
-      <a href="/seller/products" th:text="#{seller.nav.products}">Products</a>
-      <a href="/seller/orders" th:text="#{seller.nav.orders}">Orders</a>
-      <a href="/seller/messages" th:text="#{seller.nav.messages}">Messages</a>
-      <a href="/seller/shop" th:text="#{seller.nav.settings}">Shop settings</a>
-      <a href="/" target="_blank" rel="noopener" th:text="#{seller.nav.website}">Website ↗</a>
-      <form th:action="@{/logout}" method="post" class="inline"><button class="linklike" type="submit" th:text="#{nav.logout}">Log out</button></form>
-      <th:block th:replace="~{fragments :: langMenu}"></th:block>
-    </nav>
-  </div>
-</header>
-
-<!-- Language switcher in the top bar: a plain <details> menu, no script needed. -->
-<details class="lang-menu" th:fragment="langMenu">
-  <summary th:attr="aria-label=#{lang.label}"><span aria-hidden="true">🌐</span> <span th:text="${siteLanguages[lang]}">English</span></summary>
-  <div class="lang-options">
-    <a th:each="l : ${siteLanguages}" th:href="${langLinks.href(l.key)}" th:lang="${l.key}" th:text="${l.value}"
-       th:classappend="${l.key == lang} ? 'current'" th:attr="aria-current=${l.key == lang} ? 'true' : null">English</a>
-  </div>
-</details>
-
-<!-- First visit: ask for the language, in every language. Hidden once one is chosen. -->
-<div class="lang-banner" th:fragment="langBanner" th:unless="${langChosen}" role="region" th:attr="aria-label=#{lang.choose}">
-  <div class="wrap">
-    <p class="lang-ask">
-      <strong th:text="#{lang.choose}">Choose your language</strong>
-      <span class="muted small" lang="hi">अपनी भाषा चुनें</span>
-      <span class="muted small" lang="ta">உங்கள் மொழியைத் தேர்ந்தெடுக்கவும்</span>
-      <span class="muted small" lang="bn">আপনার ভাষা বেছে নিন</span>
-    </p>
-    <nav class="lang-options">
-      <a th:each="l : ${siteLanguages}" th:href="${langLinks.href(l.key)}" th:lang="${l.key}" th:text="${l.value}"
-         th:classappend="${l.key == lang} ? 'current'">English</a>
-    </nav>
-  </div>
-</div>
+<!-- Product catalogue filters: search, shop and stock, as a left column on /products.
+     Submits a plain GET so the filters stay in the address bar. -->
+<aside class="filters" th:fragment="productFilters" th:attr="aria-label=#{filters.title}">
+  <form method="get" action="/products">
+    <div class="f-title"><span th:text="#{filters.title}">Filters</span>
+      <a class="f-clear" th:if="${q != '' or shop != null or stock or sort != ''}" href="/products" th:text="#{filters.clear}">Clear</a>
+    </div>
+    <div class="f-group">
+      <label for="f-q" th:text="#{products.search}">Search</label>
+      <input id="f-q" type="search" name="q" th:value="${q}" th:placeholder="#{products.searchPlaceholder}">
+    </div>
+    <div class="f-group">
+      <span class="f-label" th:text="#{products.shop}">Shop</span>
+      <a class="f-link" th:classappend="${shop == null} ? 'on'"
+         th:href="@{/products(q=${q},stock=${stock} ? '1' : null,sort=${sort})}">
+        <span th:text="#{products.allShops}">All shops</span>
+      </a>
+      <a class="f-link" th:each="s : ${shops}" th:classappend="${shop == s.id} ? 'on'"
+         th:href="@{/products(q=${q},shop=${s.id},stock=${stock} ? '1' : null,sort=${sort})}" th:text="${s.shopName}">Shop</a>
+    </div>
+    <div class="f-group">
+      <label class="f-check"><input type="checkbox" name="stock" value="1" th:checked="${stock}"> <span th:text="#{filters.inStock}">In stock only</span></label>
+    </div>
+    <div class="f-group">
+      <label for="f-sort" th:text="#{filters.sort}">Sort</label>
+      <select id="f-sort" name="sort">
+        <option value="" th:text="#{filters.sortFeatured}">Featured</option>
+        <option value="price-low" th:selected="${sort == 'price-low'}" th:text="#{filters.sortPriceLow}">Price: low to high</option>
+        <option value="price-high" th:selected="${sort == 'price-high'}" th:text="#{filters.sortPriceHigh}">Price: high to low</option>
+      </select>
+    </div>
+    <button class="btn" type="submit" th:text="#{filters.apply}">Apply</button>
+  </form>
+</aside>
 
 <th:block th:fragment="flash">
   <div class="alert ok" th:if="${notice}" th:text="${notice}"></div>
   <div class="alert err" th:if="${error}" th:text="${error}"></div>
 </th:block>
 
-<!-- Language links inside a page (the intake pages) -->
-<nav class="lang-picker small" th:fragment="langPicker">
-  <span th:text="#{lang.label} + ':'">Language:</span>
-  <a th:each="l : ${siteLanguages}" th:href="${langLinks.href(l.key)}" th:lang="${l.key}" th:text="${l.value}">English</a>
-</nav>
-
-<!-- A product's price and stock, in the reader's language -->
+<!-- A product's price and stock -->
 <span th:fragment="price(p)" th:text="${p.pricePaise == null} ? #{product.askPrice} : ${p.priceLabel()}">₹0</span>
 <span th:fragment="stock(p)"
       th:text="${p.stock == null} ? #{product.madeToOrder} : (${p.stock == 0} ? #{product.outOfStock} : (${p.stock <= 5} ? #{product.onlyLeft(${p.stock})} : #{product.inStock(${p.stock})}))">Made to order</span>
-
-<!-- Shows "Original" under a translated text, without any script -->
-<details class="original small" th:fragment="original(text, show)" th:if="${show}">
-  <summary th:text="#{common.original}">Original</summary>
-  <div class="pre" th:text="${text}"></div>
-</details>
 </body>
 </html>
