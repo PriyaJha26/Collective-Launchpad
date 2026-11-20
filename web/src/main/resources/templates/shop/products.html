@@ -7,6 +7,15 @@
 <aside th:replace="~{fragments :: productFilters}"></aside>
 <main>
   <th:block th:replace="~{fragments :: flash}"></th:block>
+  <form class="search-bar" method="get" action="/products" role="search">
+    <th:block th:replace="~{fragments :: ico('search')}"></th:block>
+    <input type="search" name="q" th:value="${q}" th:placeholder="#{products.searchPlaceholder}" aria-label="Search" autocomplete="off">
+    <input type="hidden" name="shop" th:value="${shop}" th:if="${shop != null}">
+    <input type="hidden" name="stock" value="1" th:if="${stock}">
+    <input type="hidden" name="sort" th:value="${sort}" th:if="${sort != ''}">
+    <button class="btn small" type="submit" th:text="#{products.search}">Search</button>
+  </form>
+  <div class="chips" th:if="${q != ''}"><a class="chip" href="/products" th:text="'“' + ${q} + '”  ✕'">q</a></div>
   <div class="row between">
     <h1 class="mt" th:text="#{products.title}">All products</h1>
     <p class="muted small" th:if="${!products.isEmpty()}" th:text="#{products.count(${products.size()})}"></p>

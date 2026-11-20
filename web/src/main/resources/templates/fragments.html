@@ -20,12 +20,13 @@
   <nav class="nav" id="top-menu" th:attr="aria-label=${group.name}">
     <a th:href="${urls.mainUrl()} + '/'" th:classappend="${path == '/'} ? 'active'" th:text="#{nav.home}">Home</a>
     <a th:href="${urls.mainUrl()} + '/products'" th:classappend="${path.startsWith('/products') or path.startsWith('/p/')} ? 'active'" th:text="#{nav.products}">Products</a>
-    <a class="btn small" th:if="${me == null}" th:href="${urls.mainUrl()} + '/join'" th:text="#{nav.sell}">Sell with us</a>
+    <a class="btn small" th:if="${me == null}" th:href="${urls.mainUrl()} + '/register/seller'" th:text="#{nav.sell}">Sell with us</a>
   </nav>
   <div class="actions">
     <a class="icon-btn" th:href="${urls.mainUrl()} + '/cart'" th:classappend="${path.startsWith('/cart') or path.startsWith('/checkout')} ? 'active'"
        th:attr="aria-label=#{nav.cart},title=#{nav.cart}">
       <th:block th:replace="~{fragments :: ico('cart')}"></th:block><span class="badge-n" th:if="${cartCount > 0}" th:text="${cartCount}"></span></a>
+    <a class="btn small sell-quick" th:if="${me == null}" th:href="${urls.mainUrl()} + '/register/seller'" th:text="#{nav.sell}">Sell with us</a>
     <a class="btn small secondary" th:if="${me == null}" th:href="${urls.mainUrl()} + '/login'"
        th:classappend="${path == '/login'} ? 'on'" th:text="#{nav.login}">Log in</a>
     <a class="icon-btn" th:if="${me != null and me.isSeller()}" th:href="${urls.mainUrl()} + '/seller'"
@@ -156,12 +157,9 @@
      Submits a plain GET so the filters stay in the address bar. -->
 <aside class="filters" th:fragment="productFilters" th:attr="aria-label=#{filters.title}">
   <form method="get" action="/products">
+    <input type="hidden" name="q" th:value="${q}" th:if="${q != ''}">
     <div class="f-title"><span th:text="#{filters.title}">Filters</span>
       <a class="f-clear" th:if="${q != '' or shop != null or stock or sort != ''}" href="/products" th:text="#{filters.clear}">Clear</a>
-    </div>
-    <div class="f-group">
-      <label for="f-q" th:text="#{products.search}">Search</label>
-      <input id="f-q" type="search" name="q" th:value="${q}" th:placeholder="#{products.searchPlaceholder}">
     </div>
     <div class="f-group">
       <span class="f-label" th:text="#{products.shop}">Shop</span>
