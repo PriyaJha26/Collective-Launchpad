@@ -8,9 +8,12 @@
 (app) {
 	@internal path /internal/*
 	respond @internal 404
+
 	reverse_proxy web:8080
 }
 
 http://72.167.150.242 {
-	import app
+	reverse_proxy web:8080 {
+		header_up Host ourvillagecrafts.in
+	}
 }
