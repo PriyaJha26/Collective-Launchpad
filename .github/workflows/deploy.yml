@@ -6,7 +6,7 @@ name: Deploy
 #   SERVER_USER      SSH user on the server
 #   SERVER_SSH_KEY   private key whose public half is in ~/.ssh/authorized_keys on the server
 #   SERVER_PORT      optional, defaults to 22
-#   APP_DIR          optional, defaults to ~/Collective-Launchpad
+#   APP_DIR          optional, defaults to $HOME/Collective-Launchpad
 
 on:
   push:
@@ -30,7 +30,7 @@ jobs:
           port: ${{ secrets.SERVER_PORT || 22 }}
           script_stop: true
           script: |
-            cd "${{ secrets.APP_DIR || '~/Collective-Launchpad' }}"
+            cd "${{ secrets.APP_DIR || '$HOME/Collective-Launchpad' }}"
             git fetch origin main
             git reset --hard origin/main
             docker compose up -d --build
