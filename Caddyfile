@@ -5,18 +5,34 @@
 # main domain, www and published shops, so made-up subdomains never get a certificate.
 # While testing, set ACME_CA to Let's Encrypt staging to stay clear of rate limits:
 #   https://acme-staging-v02.api.letsencrypt.org/directory
+{
+	email {$ACME_EMAIL}
+	acme_ca {$ACME_CA}
+
+	on_demand_tls {
+		ask http://web:8080/internal/tls-check
+	}
+}
+
 (app) {
 	@internal path /internal/*
 	respond @internal 404
-
 	reverse_proxy web:8080
 }
 
-http://72.167.150.242 {
-    @internal path /internal/*
-    respond @internal 404
-
-    reverse_proxy http://web:8080 {
-        header_up Host ourvillagecrafts.in
-    }
+{$DOMAIN}, www.{$DOMAIN} {
+	import app
 }
+
+# Shop subdomains
+https:// {
+	tls {
+		on_demand
+	}
+	import app
+}
+
+http:// {
+	redir https://{host}{uri} permanent
+}
+
