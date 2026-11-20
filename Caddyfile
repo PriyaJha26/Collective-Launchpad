@@ -13,7 +13,10 @@
 }
 
 http://72.167.150.242 {
-	reverse_proxy web:8080 {
-		header_up Host ourvillagecrafts.in
-	}
+    @internal path /internal/*
+    respond @internal 404
+
+    reverse_proxy http://web:8080 {
+        header_up Host ourvillagecrafts.in
+    }
 }
