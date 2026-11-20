@@ -45,6 +45,7 @@
 
   <section class="block" id="contact">
     <h2 th:text="#{join.contact}">Contact us</h2>
+    <p class="lead" th:text="#{common.contactHint}">Give a phone number or an email address so we can reply.</p>
     <div class="contact">
       <div class="alert ok" th:if="${sent}" th:text="#{group.contactSent}">Thank you!</div>
       <div class="alert err" th:if="${contactError}" th:text="${contactError}"></div>

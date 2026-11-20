@@ -25,7 +25,8 @@ a { color: var(--accent); }
 img { max-width: 100%; display: block; }
 h1, h2, h3 { line-height: 1.2; margin: 0 0 .4em; }
 p { margin: 0 0 .8em; }
-.wrap { margin: 0; padding: 0 32px; }
+.wrap { margin: 0 auto; padding: 0 24px; max-width: 1240px; }
+.wrap.with-side { margin: 0; max-width: none; }
 .wrap.narrow { max-width: 760px; margin: 0 auto; }
 .muted { color: var(--muted); }
 .small { font-size: .875rem; }
@@ -128,7 +129,9 @@ section.block { padding: 28px 0 8px; }
 /* cards lift a little under the pointer */
 .card-link, .product, .order-card, a.tile { transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
 .card-link:hover, .product:hover, .order-card:hover, a.tile:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: #dccbb6; }
-.contact { max-width: 640px; }
+.contact { max-width: 640px; margin: 0 auto; }
+#contact > h2 { text-align: center; }
+#contact > .lead { text-align: center; color: var(--muted); margin-bottom: 18px; }
 footer.site { margin-top: 40px; padding: 26px 0 40px; border-top: 1px solid var(--line); color: var(--muted); font-size: .9rem; }
 
 /* ---------------- admin ---------------- */
@@ -202,6 +205,10 @@ svg.i { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-widt
 .app-bar .nav { display: flex; gap: 4px; margin-left: 12px; }
 .app-bar .nav a { padding: 8px 14px; border-radius: 999px; font-weight: 500; color: var(--muted); text-decoration: none; transition: .15s; }
 .app-bar .nav a:hover, .app-bar .nav a.active { background: var(--accent-soft); color: var(--accent-dark); }
+/* "Sell with us" is the main call to action: keep it a solid button with white text */
+.app-bar .nav a.btn, .app-bar .nav a.btn:hover { background: linear-gradient(180deg, #bd6234, var(--accent)); color: #fff; margin-left: 6px; padding: 8px 18px; }
+.app-bar .nav a.btn:hover { filter: brightness(1.08); }
+.app-bar .sell-quick { display: none; }
 .app-bar .actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 .icon-btn { position: relative; width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center;
             transition: .15s; color: var(--ink); text-decoration: none; }
@@ -303,6 +310,8 @@ body.sb-open .with-side { padding-left: calc(var(--sb-expanded) + 32px); }
 
 @media (max-width: 960px) {
   .app-bar .nav { display: none; }
+  .app-bar .sell-quick { display: inline-flex; }
+  body.top-open .app-bar .nav a.btn { margin: 6px 0 0; justify-content: center; }
   /* on pages without a rail, the menu button drops the header's links down */
   body.top-open .app-bar .nav { display: flex; flex-direction: column; align-items: stretch; gap: 2px;
           position: absolute; top: 100%; left: 0; right: 0; margin: 0; padding: 8px 14px 14px; background: #fff;
@@ -371,3 +380,17 @@ input.qty { width: 90px; }
   * { transition: none !important; animation: none !important; }
   .btn:hover, .card-link:hover, .product:hover, .order-card:hover, a.tile:hover { transform: none; }
 }
+
+/* products page: search bar across the top of the results */
+.shop-layout main { min-width: 0; }
+.search-bar { display: flex; gap: 8px; align-items: center; background: var(--card); border: 1.5px solid var(--line); border-radius: 999px;
+              padding: 5px 5px 5px 18px; box-shadow: var(--shadow-sm); margin-bottom: 18px; transition: border-color .15s, box-shadow .15s; }
+.search-bar:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.search-bar .i { color: var(--muted); }
+.search-bar input[type=search] { flex: 1; min-width: 0; border: 0; background: none; padding: .6em 0; font-size: 1rem; box-shadow: none; outline: none; }
+.search-bar input[type=search]:focus { outline: none; box-shadow: none; }
+.search-bar .btn { padding: .55em 1.4em; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.chip { padding: 5px 12px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-dark); font-size: .85rem; text-decoration: none; }
+.chip:hover { background: #efd5c6; }
+.filters .f-search { display: none; }
