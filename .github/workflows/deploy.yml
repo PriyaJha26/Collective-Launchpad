@@ -1,18 +1,10 @@
 name: Deploy
 
-# On every push to main, SSH into the GoDaddy server, pull the code and rebuild the containers.
-# Required repository secrets (Settings > Secrets and variables > Actions):
-#   SERVER_HOST      e.g. 72.167.150.242
-#   SERVER_USER      SSH user on the server
-#   SERVER_SSH_KEY   private key whose public half is in ~/.ssh/authorized_keys on the server
-#   SERVER_PORT      optional, defaults to 22
-#   APP_DIR          optional, defaults to $HOME/Collective-Launchpad
-
-name: Deploy
-
+# Deploy to GoDaddy VPS on every push to main
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 concurrency:
@@ -34,7 +26,7 @@ jobs:
           port: ${{ secrets.SERVER_PORT || 22 }}
           script_stop: true
           script: |
-            cd "${{ secrets.APP_DIR || '$HOME/Collective-Launchpad' }}"
+            cd "${{ secrets.APP_DIR || '/home/priya/Collective-Launchpad' }}"
             git fetch origin main
             git reset --hard origin/main
             docker compose up -d --build
